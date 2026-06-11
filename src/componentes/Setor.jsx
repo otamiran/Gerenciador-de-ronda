@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Grupo from './Grupo.jsx'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
@@ -11,28 +11,67 @@ export default function Setor({
   const [editandoNome, setEditandoNome] = useState(false)
   const [novoNome, setNovoNome]         = useState(setor.nome)
 
-  // grupos deste setor
-  const meusGrupos = grupos.filter(g => g.setor_id === setor.id)
-
-  // máquinas sem grupo (diretamente no setor — compatibilidade com dados antigos)
+  const meusGrupos       = grupos.filter(g => g.setor_id === setor.id)
   const maquinasSemGrupo = maquinas.filter(m => !m.grupo_id)
-
-  // progresso total do setor (grupos + máquinas soltas)
-  const todasMaquinas = maquinas // já filtradas para este setor no App
-  const completas     = todasMaquinas.filter(m => calcularCompletude(m, estacoes).completo).length
-  const total         = todasMaquinas.length
-  const setorCompleto = total > 0 && completas === total
+  const todasMaquinas    = maquinas
+  const completas        = todasMaquinas.filter(m => calcularCompletude(m, estacoes).completo).length
+  const total            = todasMaquinas.length
+  const setorCompleto    = total > 0 && completas === total
 
   const salvarNome = () => {
-    if (novoNome.trim() && novoNome.trim() !== setor.nome)
-      aoRenomear('setores', setor.id, novoNome.trim())
+    if (novoNome.trim() && novoNome.trim() !== setor.nome) aoRenomear('setores', setor.id, novoNome.trim())
     setEditandoNome(false)
   }
+
+  // Quando um grupo esgota suas máquinas, avança para o próximo grupo com pendentes
+  const fazerAvancarGrupo = useCallback((grupoIdx) => {
+    return () => {
+      const proxGrupos = meusGrupos.slice(grupoIdx + 1)
+      for (const g of proxGrupos) {
+        const maqsDoGrupo = maquinas.filter(m => m.grupo_id === g.id)
+        const pendente = maqsDoGrupo.find(m => !calcularCompletude(m, estacoes).completo)
+        if (pendente) {
+          const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            el.classList.add('maquina-highlight')
+            setTimeout(() => el.classList.remove('maquina-highlight'), 800)
+          }
+          return
+        }
+      }
+      // sem próxima nos grupos — tenta máquinas soltas
+      const pendenteSolta = maquinasSemGrupo.find(m => !calcularCompletude(m, estacoes).completo)
+      if (pendenteSolta) {
+        const el = document.querySelector(`[data-maquina-id="${pendenteSolta.id}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          el.classList.add('maquina-highlight')
+          setTimeout(() => el.classList.remove('maquina-highlight'), 800)
+        }
+      }
+    }
+  }, [meusGrupos, maquinas, maquinasSemGrupo, estacoes])
+
+  // Para máquinas soltas (sem grupo) no setor
+  const fazerAvancarSolta = useCallback((idx) => {
+    return () => {
+      const proximas = maquinasSemGrupo.slice(idx + 1)
+      const pendente = proximas.find(m => !calcularCompletude(m, estacoes).completo)
+      if (pendente) {
+        const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          el.classList.add('maquina-highlight')
+          setTimeout(() => el.classList.remove('maquina-highlight'), 800)
+        }
+      }
+    }
+  }, [maquinasSemGrupo, estacoes])
 
   return (
     <section className={`setor ${setorCompleto ? 'setor-completo' : ''}`}>
 
-      {/* ── cabeçalho do setor ── */}
       <div className="cabecalho-setor" onClick={() => !editandoNome && setRecolhido(!recolhido)}>
         <span className="seta">{recolhido ? '▸' : '▾'}</span>
 
@@ -42,10 +81,7 @@ export default function Setor({
             autoFocus value={novoNome}
             onClick={e => e.stopPropagation()}
             onChange={e => setNovoNome(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter')  salvarNome()
-              if (e.key === 'Escape') setEditandoNome(false)
-            }}
+            onKeyDown={e => { if (e.key === 'Enter') salvarNome(); if (e.key === 'Escape') setEditandoNome(false) }}
             onBlur={salvarNome}
           />
         ) : (
@@ -53,56 +89,28 @@ export default function Setor({
             {setorCompleto && <span className="setor-check">✓</span>}
             {setor.nome}
             {gerenciar && (
-              <button
-                className="btn-editar"
-                onClick={e => { e.stopPropagation(); setNovoNome(setor.nome); setEditandoNome(true) }}
-                title="Renomear setor"
-              >✏️</button>
+              <button className="btn-editar" onClick={e => { e.stopPropagation(); setNovoNome(setor.nome); setEditandoNome(true) }} title="Renomear setor">✏️</button>
             )}
           </h2>
         )}
 
         <div className="setor-progresso">
-          <span className={`setor-contagem ${setorCompleto ? 'setor-contagem-ok' : ''}`}>
-            {completas}/{total}
-          </span>
+          <span className={`setor-contagem ${setorCompleto ? 'setor-contagem-ok' : ''}`}>{completas}/{total}</span>
           <div className="mini-barra">
-            <div
-              className="mini-barra-fill"
-              style={{
-                width: total ? `${(completas / total) * 100}%` : 0,
-                background: setorCompleto ? 'var(--verde)' : 'var(--azul-brilho)',
-              }}
-            />
+            <div className="mini-barra-fill" style={{ width: total ? `${(completas/total)*100}%` : 0, background: setorCompleto ? 'var(--verde)' : 'var(--azul-brilho)' }} />
           </div>
         </div>
 
         {gerenciar && !editandoNome && (
-          <button
-            className="excluir"
-            onClick={e => {
-              e.stopPropagation()
-              if (window.confirm(`Excluir o setor "${setor.nome}" e todos os seus grupos e máquinas?`))
-                aoExcluir('setores', setor.id)
-            }}
-          >✕</button>
+          <button className="excluir" onClick={e => { e.stopPropagation(); if (window.confirm(`Excluir o setor "${setor.nome}" e todos os seus grupos e máquinas?`)) aoExcluir('setores', setor.id) }}>✕</button>
         )}
       </div>
 
-      {/* ── corpo do setor ── */}
       {!recolhido && (
         <div className="corpo-setor">
+          {gerenciar && <AdicionarInline rotulo="+ grupo de máquinas" aoAdicionar={n => aoAddGrupo(setor.id, n)} />}
 
-          {/* botões de adicionar grupo */}
-          {gerenciar && (
-            <AdicionarInline
-              rotulo="+ grupo de máquinas"
-              aoAdicionar={n => aoAddGrupo(setor.id, n)}
-            />
-          )}
-
-          {/* grupos */}
-          {meusGrupos.map(grupo => (
+          {meusGrupos.map((grupo, grupoIdx) => (
             <Grupo
               key={grupo.id}
               grupo={grupo}
@@ -116,13 +124,13 @@ export default function Setor({
               aoAddEstacao={aoAddEstacao}
               aoExcluir={aoExcluir}
               aoRenomear={aoRenomear}
+              aoAvancarGrupo={fazerAvancarGrupo(grupoIdx)}
             />
           ))}
 
-          {/* máquinas sem grupo (legado ou adicionadas direto no setor) */}
           {maquinasSemGrupo.length > 0 && (
             <div className="maquinas-sem-grupo">
-              {maquinasSemGrupo.map(maq => (
+              {maquinasSemGrupo.map((maq, idx) => (
                 <Maquina
                   key={maq.id}
                   maquina={maq}
@@ -134,6 +142,7 @@ export default function Setor({
                   aoAddEstacao={aoAddEstacao}
                   aoExcluir={aoExcluir}
                   aoRenomear={aoRenomear}
+                  aoAvancar={fazerAvancarSolta(idx)}
                 />
               ))}
             </div>

@@ -30,8 +30,10 @@ function buildRascunho(maquina, estacoes) {
 export default function Maquina({
   maquina, estacoes, gerenciar, bloqueado,
   aoSalvarLote, aoAddEstacao, aoExcluir, aoRenomear, operador,
+  aoAvancar, // callback: () => void — scroll para a próxima máquina
 }) {
   const minhasEstacoes = estacoes.filter(e => e.maquina_id === maquina.id)
+  const meuRef = useRef(null) // ref do div raiz desta máquina
 
   const [draft, setDraft]         = useState(() => buildRascunho(maquina, minhasEstacoes))
   const [salvando, setSalvando]   = useState(false)
@@ -46,7 +48,6 @@ export default function Maquina({
     return m
   })
 
-  // ressincroniza com realtime sem apagar rascunho ativo
   useEffect(() => {
     const remoto = buildRascunho(maquina, minhasEstacoes)
     setDraft(prev => {
@@ -60,7 +61,6 @@ export default function Maquina({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maquina.status, maquina.obs, maquina.atualizado_em, estacoes])
 
-  // derivados
   const draftMaqObj = { ...maquina, status: draft.maquina.status, obs: draft.maquina.obs }
   const draftEstObj = minhasEstacoes.map(e => ({ ...e, ...(draft.estacoes[e.id] || {}) }))
   const { totalItens, marcados, completo, parcial } = calcularCompletude(draftMaqObj, draftEstObj)
@@ -85,15 +85,21 @@ export default function Maquina({
     setTimeout(() => setSalvoOk(false), 1800)
   }, [salvando, aoSalvarLote, maquina.id, draft, operador])
 
+  // auto-salva quando completo
   const prevCompleto = useRef(completo)
   useEffect(() => {
     if (completo && !prevCompleto.current && temPendente) salvar()
     prevCompleto.current = completo
   }, [completo, temPendente, salvar])
 
-  // ── handlers ──────────────────────────────────────────────
+  // ── avançar para próxima após colapso ─────────────────────
+  // Chamado quando o usuário marca "Produzindo" sem estações (ou tudo ok)
+  const triggerAvancar = useCallback(() => {
+    // pequeno delay para o colapso acontecer visualmente antes do scroll
+    setTimeout(() => aoAvancar?.(), 220)
+  }, [aoAvancar])
 
-  // Marcar máquina — se "produzindo", propaga para todas as estações também
+  // ── handlers ──────────────────────────────────────────────
   const marcarMaquina = status => {
     setDraft(d => {
       const novasEstacoes = { ...d.estacoes }
@@ -104,13 +110,14 @@ export default function Maquina({
       }
       return { ...d, maquina: { ...d.maquina, status }, estacoes: novasEstacoes }
     })
-    // fechar obs da máquina se não for pendência
     setObsAberta(o => ({ ...o, maquina: status === 'pendencia' }))
-    // se produzindo, fechar obs de todas as estações
     if (status === 'produzindo') {
       setObsAberta({ maquina: false })
+      // colapsa se tem estações (ficam marcadas)
+      if (temEstacoes) setRecolhido(true)
+      // avança para a próxima
+      triggerAvancar()
     }
-    // expandir estações quando marca parada ou pendência para facilitar detalhamento
     if ((status === 'parada' || status === 'pendencia') && temEstacoes) {
       setRecolhido(false)
     }
@@ -140,23 +147,19 @@ export default function Maquina({
     setEditing(false)
   }
 
-  // badge
   const badgeClass = completo ? 'badge-completo' : parcial ? 'badge-parcial' : 'badge-pendente'
   const badgeLabel = completo
     ? (salvoOk ? '✓ Salvo!' : '✓ Concluída')
     : parcial ? `${marcados}/${totalItens}` : 'Pendente'
 
   const draftMaqStatus = draft.maquina.status
-
-  // Verifica se todas as estações estão "produzindo" (para mostrar dica visual)
   const todasProduzindo = temEstacoes &&
     draftEstObj.every(e => e.status === 'produzindo') &&
     draftMaqStatus === 'produzindo'
 
   return (
-    <div className={`maquina ${completo ? 'maquina-completa' : ''}`}>
+    <div ref={meuRef} data-maquina-id={maquina.id} className={`maquina ${completo ? 'maquina-completa' : ''}`}>
 
-      {/* ── linha principal ── */}
       <div
         className="linha-maquina"
         onClick={() => temEstacoes && !editandoNome && setRecolhido(r => !r)}
@@ -198,7 +201,6 @@ export default function Maquina({
                 {maquina.usuario ? ` · ${maquina.usuario}` : ''}
               </span>
             )}
-            {/* dica: clique "Produzindo" para marcar todas */}
             {temEstacoes && !draftMaqStatus && (
               <span className="dica-marcar-tudo">▸ "Produzindo" marca todas as estações</span>
             )}
@@ -210,7 +212,6 @@ export default function Maquina({
         </div>
       </div>
 
-      {/* obs da máquina */}
       {obsAberta['maquina'] && (
         <div className="caixa-obs">
           <textarea
@@ -222,10 +223,8 @@ export default function Maquina({
         </div>
       )}
 
-      {/* ── estações ── */}
       {(temEstacoes || gerenciar) && !recolhido && (
         <div className="estacoes">
-          {/* faixa "todas produzindo" — mostra resumo quando tudo ok */}
           {todasProduzindo && !gerenciar && (
             <div className="faixa-todas-ok">
               ✅ Todas as {minhasEstacoes.length} estações produzindo
@@ -233,26 +232,17 @@ export default function Maquina({
           )}
 
           {draftEstObj.map(est => {
-            // quando todas estão ok e não estamos gerenciando, mostra versão compacta
             const estaOk = est.status === 'produzindo'
             const mostrarCompacto = todasProduzindo && !gerenciar
-
             return (
-              <div
-                key={est.id}
-                className={`estacao ${mostrarCompacto ? 'estacao-compacta' : ''} ${estaOk && !mostrarCompacto ? 'estacao-ok' : ''}`}
-              >
+              <div key={est.id} className={`estacao ${mostrarCompacto ? 'estacao-compacta' : ''} ${estaOk && !mostrarCompacto ? 'estacao-ok' : ''}`}>
                 <div className="linha-estacao">
-                  <span
-                    className="ponto-estacao"
-                    style={{ background: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)' }}
-                  />
+                  <span className="ponto-estacao" style={{ background: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)' }} />
                   <span className="nome-estacao">
                     {gerenciar ? (
                       <RenomearEstacao est={est} aoRenomear={aoRenomear} aoExcluir={aoExcluir} />
                     ) : est.nome}
                   </span>
-                  {/* quando compacto, apenas o emoji de status sem botões */}
                   {mostrarCompacto ? (
                     <span className="estacao-status-icon" onClick={e => { e.stopPropagation(); setRecolhido(false) }}>
                       {STATUS[est.status].emoji}
@@ -281,16 +271,13 @@ export default function Maquina({
         </div>
       )}
 
-      {/* chips de resumo quando recolhida */}
       {temEstacoes && recolhido && (
         <div className="resumo-recolhido">
           {todasProduzindo ? (
             <span className="chip-tudo-ok">✅ Todas as {minhasEstacoes.length} estações produzindo</span>
           ) : (
             draftEstObj.map(est => (
-              <span
-                key={est.id}
-                className="chip-estacao-mini"
+              <span key={est.id} className="chip-estacao-mini"
                 style={{
                   borderColor: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)',
                   color:       est.status ? STATUS[est.status].cor : 'var(--cinza-texto)',
@@ -303,7 +290,6 @@ export default function Maquina({
         </div>
       )}
 
-      {/* rodapé salvar */}
       {temPendente && (
         <div className="maquina-rodape">
           <span className="maquina-rodape-hint">Alterações não salvas</span>
@@ -326,8 +312,7 @@ function RenomearEstacao({ est, aoRenomear, aoExcluir }) {
   }
   if (editando)
     return (
-      <input
-        className="input-renomear" autoFocus value={nome}
+      <input className="input-renomear" autoFocus value={nome}
         onChange={e => setNome(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') setEditando(false) }}
         onBlur={salvar}
