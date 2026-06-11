@@ -30,11 +30,8 @@ function buildRascunho(maquina, estacoes) {
 export default function Maquina({
   maquina, estacoes, gerenciar, bloqueado,
   aoSalvarLote, aoAddEstacao, aoExcluir, aoRenomear, operador,
-  aoAvancar, // callback: () => void — scroll para a próxima máquina
 }) {
   const minhasEstacoes = estacoes.filter(e => e.maquina_id === maquina.id)
-  const meuRef = useRef(null) // ref do div raiz desta máquina
-
   const [draft, setDraft]         = useState(() => buildRascunho(maquina, minhasEstacoes))
   const [salvando, setSalvando]   = useState(false)
   const [salvoOk, setSalvoOk]     = useState(false)
@@ -92,13 +89,6 @@ export default function Maquina({
     prevCompleto.current = completo
   }, [completo, temPendente, salvar])
 
-  // ── avançar para próxima após colapso ─────────────────────
-  // Chamado quando o usuário marca "Produzindo" sem estações (ou tudo ok)
-  const triggerAvancar = useCallback(() => {
-    // pequeno delay para o colapso acontecer visualmente antes do scroll
-    setTimeout(() => aoAvancar?.(), 220)
-  }, [aoAvancar])
-
   // ── handlers ──────────────────────────────────────────────
   const marcarMaquina = status => {
     setDraft(d => {
@@ -113,10 +103,8 @@ export default function Maquina({
     setObsAberta(o => ({ ...o, maquina: status === 'pendencia' }))
     if (status === 'produzindo') {
       setObsAberta({ maquina: false })
-      // colapsa se tem estações (ficam marcadas)
+      // colapsa estações se existirem
       if (temEstacoes) setRecolhido(true)
-      // avança para a próxima
-      triggerAvancar()
     }
     if ((status === 'parada' || status === 'pendencia') && temEstacoes) {
       setRecolhido(false)
@@ -158,7 +146,7 @@ export default function Maquina({
     draftMaqStatus === 'produzindo'
 
   return (
-    <div ref={meuRef} data-maquina-id={maquina.id} className={`maquina ${completo ? 'maquina-completa' : ''}`}>
+    <div data-maquina-id={maquina.id} className={`maquina ${completo ? 'maquina-completa' : ''}`}>
 
       <div
         className="linha-maquina"

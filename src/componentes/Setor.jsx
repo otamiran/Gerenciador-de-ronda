@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { scrollParaMaquina } from '../utils.js'
 import Grupo from './Grupo.jsx'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
@@ -23,46 +22,6 @@ export default function Setor({
     if (novoNome.trim() && novoNome.trim() !== setor.nome) aoRenomear('setores', setor.id, novoNome.trim())
     setEditandoNome(false)
   }
-
-  // Quando um grupo esgota suas máquinas, avança para o próximo grupo com pendentes
-  const fazerAvancarGrupo = useCallback((grupoIdx) => {
-    return () => {
-      const proxGrupos = meusGrupos.slice(grupoIdx + 1)
-      for (const g of proxGrupos) {
-        const maqsDoGrupo = maquinas.filter(m => m.grupo_id === g.id)
-        const pendente = maqsDoGrupo.find(m => !calcularCompletude(m, estacoes).completo)
-        if (pendente) {
-          const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
-          if (el) {
-            scrollParaMaquina(el)
-          }
-          return
-        }
-      }
-      // sem próxima nos grupos — tenta máquinas soltas
-      const pendenteSolta = maquinasSemGrupo.find(m => !calcularCompletude(m, estacoes).completo)
-      if (pendenteSolta) {
-        const el = document.querySelector(`[data-maquina-id="${pendenteSolta.id}"]`)
-        if (el) {
-          scrollParaMaquina(el)
-        }
-      }
-    }
-  }, [meusGrupos, maquinas, maquinasSemGrupo, estacoes])
-
-  // Para máquinas soltas (sem grupo) no setor
-  const fazerAvancarSolta = useCallback((idx) => {
-    return () => {
-      const proximas = maquinasSemGrupo.slice(idx + 1)
-      const pendente = proximas.find(m => !calcularCompletude(m, estacoes).completo)
-      if (pendente) {
-        const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
-        if (el) {
-          scrollParaMaquina(el)
-        }
-      }
-    }
-  }, [maquinasSemGrupo, estacoes])
 
   return (
     <section className={`setor ${setorCompleto ? 'setor-completo' : ''}`}>
@@ -119,7 +78,6 @@ export default function Setor({
               aoAddEstacao={aoAddEstacao}
               aoExcluir={aoExcluir}
               aoRenomear={aoRenomear}
-              aoAvancarGrupo={fazerAvancarGrupo(grupoIdx)}
             />
           ))}
 
@@ -137,7 +95,6 @@ export default function Setor({
                   aoAddEstacao={aoAddEstacao}
                   aoExcluir={aoExcluir}
                   aoRenomear={aoRenomear}
-                  aoAvancar={fazerAvancarSolta(idx)}
                 />
               ))}
             </div>

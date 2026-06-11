@@ -940,9 +940,6 @@ html, body {
   padding: 2px 8px; font-size: 12px;
 }
 
-/* ── highlight ao avançar para próxima máquina ─────────── */
-@keyframes maquina-pulso {
-  0%   { box-shadow: 0 0 0 0   rgba(37,99,235,.0);  border-color: var(--borda-clara); }
   30%  { box-shadow: 0 0 0 4px rgba(37,99,235,.5);  border-color: var(--azul-brilho); }
   100% { box-shadow: 0 0 0 0   rgba(37,99,235,.0);  border-color: var(--borda-clara); }
 }

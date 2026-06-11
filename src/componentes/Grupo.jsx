@@ -1,12 +1,10 @@
 import { useState, useRef, useCallback } from 'react'
-import { scrollParaMaquina } from '../utils.js'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
 
 export default function Grupo({
   grupo, maquinas, estacoes, gerenciar, operador, bloqueado,
   aoSalvarLote, aoAddMaquina, aoAddEstacao, aoExcluir, aoRenomear,
-  aoAvancarGrupo, // callback quando última máquina do grupo for concluída
 }) {
   const [recolhido, setRecolhido]       = useState(false)
   const [editandoNome, setEditandoNome] = useState(false)
@@ -21,31 +19,6 @@ export default function Grupo({
       aoRenomear('grupos', grupo.id, novoNome.trim())
     setEditandoNome(false)
   }
-
-  // Gera callback de "avançar" para cada máquina:
-  // procura a próxima máquina PENDENTE no DOM a partir do elemento atual,
-  // e faz scroll suave para ela. Se não encontrar dentro do grupo, chama aoAvancarGrupo.
-  const fazerAvancar = useCallback((idx) => {
-    return () => {
-      // próximas máquinas do grupo (após a atual)
-      const proximas = maquinas.slice(idx + 1)
-      const pendente = proximas.find(m => !calcularCompletude(m, estacoes).completo)
-
-      if (pendente) {
-        // acha o elemento DOM da próxima máquina pendente
-        const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          // destaque visual rápido
-          el.classList.add('maquina-highlight')
-          setTimeout(() => el.classList.remove('maquina-highlight'), 800)
-        }
-      } else {
-        // sem próxima pendente no grupo — sobe para o nível acima
-        aoAvancarGrupo?.()
-      }
-    }
-  }, [maquinas, estacoes, aoAvancarGrupo])
 
   return (
     <div className={`grupo ${grupoCompleto ? 'grupo-completo' : ''}`}>
@@ -98,7 +71,6 @@ export default function Grupo({
               aoAddEstacao={aoAddEstacao}
               aoExcluir={aoExcluir}
               aoRenomear={aoRenomear}
-              aoAvancar={fazerAvancar(idx)}
             />
           ))}
           {gerenciar && <AdicionarInline rotulo="+ máquina" aoAdicionar={n => aoAddMaquina(grupo.id, n)} />}
