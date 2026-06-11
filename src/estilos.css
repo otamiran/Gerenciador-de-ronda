@@ -940,9 +940,30 @@ html, body {
   padding: 2px 8px; font-size: 12px;
 }
 
-  30%  { box-shadow: 0 0 0 4px rgba(37,99,235,.5);  border-color: var(--azul-brilho); }
-  100% { box-shadow: 0 0 0 0   rgba(37,99,235,.0);  border-color: var(--borda-clara); }
+
+
+/* ── chips de estação clicáveis no resumo recolhido ──────── */
+.chip-estacao-clicavel {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1.5px solid; border-radius: 5px;
+  padding: 4px 9px; font-size: 12px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  transition: all .12s; user-select: none;
 }
-.maquina-highlight {
-  animation: maquina-pulso .8s ease-out forwards;
+.chip-estacao-clicavel:hover:not(:disabled) {
+  filter: brightness(1.2);
+  transform: scale(1.04);
+}
+.chip-estacao-clicavel:active:not(:disabled) {
+  transform: scale(.97);
+}
+.chip-estacao-clicavel:disabled {
+  opacity: .4; cursor: not-allowed;
+}
+
+.chip-tudo-ok-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: #4ADE80;
+  padding: 4px 6px; align-self: center;
+  opacity: .7;
 }

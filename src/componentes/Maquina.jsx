@@ -261,19 +261,43 @@ export default function Maquina({
 
       {temEstacoes && recolhido && (
         <div className="resumo-recolhido">
-          {todasProduzindo ? (
-            <span className="chip-tudo-ok">✅ Todas as {minhasEstacoes.length} estações produzindo</span>
-          ) : (
-            draftEstObj.map(est => (
-              <span key={est.id} className="chip-estacao-mini"
+          {draftEstObj.map(est => {
+            // ciclo: undefined → produzindo → parada → pendencia → produzindo → ...
+            const ciclo = [undefined, 'produzindo', 'parada', 'pendencia']
+            const idxAtual = ciclo.indexOf(est.status ?? undefined)
+            const proximoStatus = ciclo[(idxAtual + 1) % ciclo.length]
+
+            const cor   = est.status ? STATUS[est.status].cor : 'var(--cinza-claro)'
+            const emoji = est.status ? STATUS[est.status].emoji : '⬜'
+
+            return (
+              <button
+                key={est.id}
+                className="chip-estacao-clicavel"
                 style={{
-                  borderColor: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)',
-                  color:       est.status ? STATUS[est.status].cor : 'var(--cinza-texto)',
+                  borderColor: cor,
+                  color: est.status ? cor : 'var(--cinza-texto)',
+                  background: est.status === 'produzindo'
+                    ? 'var(--verde-bg)'
+                    : est.status === 'parada'
+                    ? 'var(--amarelo-bg)'
+                    : est.status === 'pendencia'
+                    ? 'var(--vermelho-bg)'
+                    : 'transparent',
                 }}
+                onClick={e => {
+                  e.stopPropagation()
+                  if (!bloqueado) marcarEstacao(est.id, proximoStatus)
+                }}
+                disabled={bloqueado}
+                title={`${est.nome}: clique para alternar status`}
               >
-                {est.status ? STATUS[est.status].emoji : '⬜'} {est.nome}
-              </span>
-            ))
+                {emoji} {est.nome}
+              </button>
+            )
+          })}
+          {todasProduzindo && (
+            <span className="chip-tudo-ok-label">✓ todas ok</span>
           )}
         </div>
       )}
