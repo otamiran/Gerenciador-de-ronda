@@ -1,7 +1,7 @@
 // Scroll suave compensando o header fixo + margem extra
 export function scrollParaMaquina(el) {
   if (!el) return
-  const OFFSET = 120 // altura do header (~56px) + barra de progresso + margem
+  const OFFSET = 200 // altura do header (~56px) + barra de progresso + margem
   const top = el.getBoundingClientRect().top + window.scrollY - OFFSET
   window.scrollTo({ top, behavior: 'smooth' })
   el.classList.add('maquina-highlight')
