@@ -20,6 +20,7 @@ export default function App() {
   const [verHistorico, setVerHistorico] = useState(false)
   const [carregando, setCarregando]     = useState(true)
   const [erro, setErro]                 = useState('')
+  const [avisouNome, setAvisouNome]     = useState(false)
 
   // ── carregar ──────────────────────────────────────────────
   const carregar = useCallback(async () => {
@@ -193,7 +194,12 @@ export default function App() {
           </div>
         </div>
         <div className="topo-acoes">
-          <input className="campo-operador" value={operador} onChange={e => salvarOperador(e.target.value)} placeholder="Seu nome" />
+          <input
+            className={`campo-operador ${!operador ? 'campo-operador-vazio' : ''}`}
+            value={operador}
+            onChange={e => { salvarOperador(e.target.value); setAvisouNome(false) }}
+            placeholder="⚠ Digite seu nome"
+          />
           <button className="fantasma" onClick={() => setVerHistorico(true)}>📋 Histórico</button>
           <button className={`fantasma ${gerenciar ? 'ativo' : ''}`} onClick={clicarGerenciar}>
             {gerenciar ? '🔓 Sair edição' : '⚙ Gerenciar'}
@@ -213,6 +219,12 @@ export default function App() {
           </div>
         )}
 
+        {!operador && (
+          <div className="aviso-operador">
+            <span>⚠️ Digite seu nome no campo acima antes de iniciar a ronda.</span>
+          </div>
+        )}
+
         {gerenciar && <AdicionarInline rotulo="+ Adicionar setor" aoAdicionar={addSetor} grande />}
 
         {setores.map(setor => (
@@ -224,6 +236,7 @@ export default function App() {
             estacoes={estacoes}
             gerenciar={gerenciar}
             operador={operador}
+            bloqueado={!operador}
             aoSalvarLote={salvarLote}
             aoAddGrupo={addGrupo}
             aoAddMaquina={addMaquina}

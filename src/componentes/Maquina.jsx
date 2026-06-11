@@ -28,7 +28,7 @@ function buildRascunho(maquina, estacoes) {
 // ── componente ────────────────────────────────────────────
 
 export default function Maquina({
-  maquina, estacoes, gerenciar,
+  maquina, estacoes, gerenciar, bloqueado,
   aoSalvarLote, aoAddEstacao, aoExcluir, aoRenomear, operador,
 }) {
   const minhasEstacoes = estacoes.filter(e => e.maquina_id === maquina.id)
@@ -206,7 +206,7 @@ export default function Maquina({
         </div>
 
         <div className="maquina-acoes" onClick={e => e.stopPropagation()}>
-          <BotoesStatus status={draftMaqStatus} aoMarcar={marcarMaquina} />
+          <BotoesStatus status={draftMaqStatus} aoMarcar={marcarMaquina} bloqueado={bloqueado} />
         </div>
       </div>
 
@@ -258,7 +258,7 @@ export default function Maquina({
                       {STATUS[est.status].emoji}
                     </span>
                   ) : (
-                    <BotoesStatus compacto status={est.status} aoMarcar={s => marcarEstacao(est.id, s)} />
+                    <BotoesStatus compacto status={est.status} aoMarcar={s => marcarEstacao(est.id, s)} bloqueado={bloqueado} />
                   )}
                 </div>
                 {obsAberta[est.id] && (

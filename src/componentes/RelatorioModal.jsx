@@ -4,7 +4,8 @@ import { gerarTextoRelatorio } from '../constantes.js'
 export default function RelatorioModal({ setores, grupos, maquinas, estacoes, operador, aoFechar }) {
   const [setoresSel, setSetoresSel] = useState(() => new Set(setores.map(s => s.id)))
   const [gruposSel,  setGruposSel]  = useState(() => new Set(grupos.map(g => g.id)))
-  const [copiado, setCopiado]       = useState(false)
+  const [filtro,     setFiltro]     = useState('todos') // 'todos' | 'criticos'
+  const [copiado,    setCopiado]    = useState(false)
 
   // ── toggle setor ─────────────────────────────────────────
   const toggleSetor = id => {
@@ -12,12 +13,10 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
       const next = new Set(prev)
       if (next.has(id)) {
         next.delete(id)
-        // desmarcar os grupos filhos também
         const filhos = grupos.filter(g => g.setor_id === id).map(g => g.id)
         setGruposSel(pg => { const ng = new Set(pg); filhos.forEach(gid => ng.delete(gid)); return ng })
       } else {
         next.add(id)
-        // marcar os grupos filhos
         const filhos = grupos.filter(g => g.setor_id === id).map(g => g.id)
         setGruposSel(pg => { const ng = new Set(pg); filhos.forEach(gid => ng.add(gid)); return ng })
       }
@@ -27,8 +26,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
 
   const toggleTodosSetores = () => {
     if (setoresSel.size === setores.length) {
-      setSetoresSel(new Set())
-      setGruposSel(new Set())
+      setSetoresSel(new Set()); setGruposSel(new Set())
     } else {
       setSetoresSel(new Set(setores.map(s => s.id)))
       setGruposSel(new Set(grupos.map(g => g.id)))
@@ -40,19 +38,14 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
     setGruposSel(prev => {
       const next = new Set(prev)
       next.has(grupoId) ? next.delete(grupoId) : next.add(grupoId)
-      // Se pelo menos um grupo do setor está selecionado, setor deve estar selecionado
       const gruposDoSetor = grupos.filter(g => g.setor_id === setorId).map(g => g.id)
       const algumAtivo = gruposDoSetor.some(gid => next.has(gid))
-      setSetoresSel(ps => {
-        const ns = new Set(ps)
-        algumAtivo ? ns.add(setorId) : ns.delete(setorId)
-        return ns
-      })
+      setSetoresSel(ps => { const ns = new Set(ps); algumAtivo ? ns.add(setorId) : ns.delete(setorId); return ns })
       return next
     })
   }
 
-  const toggleTodosGruposDoSetor = (setorId) => {
+  const toggleTodosGruposDoSetor = setorId => {
     const filhos = grupos.filter(g => g.setor_id === setorId).map(g => g.id)
     const todosAtivos = filhos.every(gid => gruposSel.has(gid))
     setGruposSel(prev => {
@@ -72,7 +65,6 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
   const texto = useMemo(() => {
     const setoresFiltrados  = setores.filter(s => setoresSel.has(s.id))
     const gruposFiltrados   = grupos.filter(g => gruposSel.has(g.id))
-    // máquinas: inclui se o grupo está selecionado OU se não tem grupo e o setor está selecionado
     const maquinasFiltradas = maquinas.filter(m =>
       (m.grupo_id && gruposSel.has(m.grupo_id)) ||
       (!m.grupo_id && setoresSel.has(m.setor_id))
@@ -82,26 +74,20 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
     )
     if (setoresFiltrados.length === 0) return ''
     return gerarTextoRelatorio({
-      setores: setoresFiltrados,
-      grupos: gruposFiltrados,
-      maquinas: maquinasFiltradas,
-      estacoes: estacoesFiltradas,
-      operador,
-      agora: new Date(),
+      setores: setoresFiltrados, grupos: gruposFiltrados,
+      maquinas: maquinasFiltradas, estacoes: estacoesFiltradas,
+      operador, agora: new Date(), filtro,
     })
-  }, [setoresSel, gruposSel, setores, grupos, maquinas, estacoes, operador])
+  }, [setoresSel, gruposSel, filtro, setores, grupos, maquinas, estacoes, operador])
 
   const copiar = async () => {
     try { await navigator.clipboard.writeText(texto) }
     catch {
       const ta = document.createElement('textarea')
-      ta.value = texto
-      document.body.appendChild(ta); ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
+      ta.value = texto; document.body.appendChild(ta); ta.select()
+      document.execCommand('copy'); document.body.removeChild(ta)
     }
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2000)
+    setCopiado(true); setTimeout(() => setCopiado(false), 2000)
   }
 
   const nenhumSelecionado = texto.length === 0
@@ -116,10 +102,25 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
           <button className="fechar-modal" onClick={aoFechar}>✕</button>
         </div>
 
-        {/* seleção em dois níveis */}
-        <div className="rel-selecao">
+        {/* filtro de conteúdo */}
+        <div className="rel-filtro-barra">
+          <span className="rel-filtro-label">Conteúdo:</span>
+          <button
+            className={`chip-filtro ${filtro === 'todos' ? 'ativo' : ''}`}
+            onClick={() => setFiltro('todos')}
+          >
+            📋 Completo
+          </button>
+          <button
+            className={`chip-filtro chip-filtro-critico ${filtro === 'criticos' ? 'ativo' : ''}`}
+            onClick={() => setFiltro('criticos')}
+          >
+            ⚠️ Só pendências e paradas
+          </button>
+        </div>
 
-          {/* nível 1: setores */}
+        {/* seleção de setores + grupos */}
+        <div className="rel-selecao">
           <div className="rel-nivel-titulo">
             <span>Setores</span>
             <button className="link-btn-sm" onClick={toggleTodosSetores}>
@@ -132,11 +133,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
               const maqDoSetor = maquinas.filter(m => m.setor_id === s.id)
               const concluidas = maqDoSetor.filter(m => m.status).length
               return (
-                <button
-                  key={s.id}
-                  className={`chip-setor-sel ${ativo ? 'ativo' : ''}`}
-                  onClick={() => toggleSetor(s.id)}
-                >
+                <button key={s.id} className={`chip-setor-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleSetor(s.id)}>
                   <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
                   {s.nome}
                   <span className="chip-setor-count">{concluidas}/{maqDoSetor.length}</span>
@@ -145,7 +142,6 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
             })}
           </div>
 
-          {/* nível 2: grupos — agrupados por setor selecionado */}
           {setores.filter(s => setoresSel.has(s.id)).map(s => {
             const gruposDoSetor = grupos.filter(g => g.setor_id === s.id)
             if (gruposDoSetor.length === 0) return null
@@ -164,11 +160,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
                     const maqDoGrupo = maquinas.filter(m => m.grupo_id === g.id)
                     const concluidas = maqDoGrupo.filter(m => m.status).length
                     return (
-                      <button
-                        key={g.id}
-                        className={`chip-grupo-sel ${ativo ? 'ativo' : ''}`}
-                        onClick={() => toggleGrupo(g.id, s.id)}
-                      >
+                      <button key={g.id} className={`chip-grupo-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleGrupo(g.id, s.id)}>
                         <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
                         📦 {g.nome}
                         <span className="chip-setor-count">{concluidas}/{maqDoGrupo.length}</span>
@@ -182,11 +174,10 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
         </div>
 
         {/* preview */}
-        {nenhumSelecionado ? (
-          <div className="rel-vazio">Selecione pelo menos um setor ou grupo.</div>
-        ) : (
-          <textarea className="rel-preview" readOnly value={texto} rows={11} />
-        )}
+        {nenhumSelecionado
+          ? <div className="rel-vazio">Selecione pelo menos um setor ou grupo.</div>
+          : <textarea className="rel-preview" readOnly value={texto} rows={10} />
+        }
 
         {/* ações */}
         <div className="acoes-modal">
@@ -194,11 +185,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
             {copiado ? '✓ Copiado!' : 'Copiar texto'}
           </button>
           {!nenhumSelecionado && (
-            <a
-              className="link-whatsapp"
-              href={`https://wa.me/?text=${encodeURIComponent(texto)}`}
-              target="_blank" rel="noreferrer"
-            >
+            <a className="link-whatsapp" href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer">
               Abrir no WhatsApp
             </a>
           )}

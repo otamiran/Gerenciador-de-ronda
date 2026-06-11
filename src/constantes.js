@@ -4,53 +4,69 @@ export const STATUS = {
   pendencia:  { rotulo: 'Pendência',  emoji: '🔴', cor: '#DC2626', fundo: '#250A0A' },
 }
 
-// Gera as linhas de estações de uma máquina de forma inteligente:
-// - todas produzindo → resumo em uma linha
-// - qualquer parada/pendência → mostra só as que não estão produzindo individualmente
-function linhasEstacoes(estacoesDaMaquina, indent) {
+// linhasEstacoes — modo normal ou só pendências/paradas
+function linhasEstacoes(estacoesDaMaquina, indent, apenasCriticos = false) {
   if (estacoesDaMaquina.length === 0) return []
 
-  const naoProduzindo = estacoesDaMaquina.filter(e => e.status !== 'produzindo')
-  const todasProduzindo = naoProduzindo.length === 0
-
-  if (todasProduzindo) {
-    // resumo compacto — não lista cada estação
-    return [`${indent}  └ ${estacoesDaMaquina.length} estações: todas produzindo ✅`]
+  if (apenasCriticos) {
+    const criticas = estacoesDaMaquina.filter(e => e.status === 'parada' || e.status === 'pendencia')
+    return criticas.flatMap(est => {
+      const linhas = [`${indent}  • ${est.nome}: ${STATUS[est.status].emoji} ${STATUS[est.status].rotulo}`]
+      if (est.status === 'pendencia' && est.obs) linhas.push(`${indent}     ↳ ${est.obs}`)
+      return linhas
+    })
   }
+
+  const naoProduzindo = estacoesDaMaquina.filter(e => e.status !== 'produzindo')
+  if (naoProduzindo.length === 0)
+    return [`${indent}  └ ${estacoesDaMaquina.length} estações: todas produzindo ✅`]
 
   const linhas = []
   const produzindoCount = estacoesDaMaquina.filter(e => e.status === 'produzindo').length
-
-  // resumo das que estão ok, se houver
-  if (produzindoCount > 0) {
-    linhas.push(`${indent}  └ ${produzindoCount} estação(ões) produzindo ✅`)
-  }
-
-  // detalha individualmente só as que têm problema
+  if (produzindoCount > 0) linhas.push(`${indent}  └ ${produzindoCount} estação(ões) produzindo ✅`)
   for (const est of naoProduzindo) {
     const ie = est.status ? STATUS[est.status].emoji : '⬜'
     const se = est.status ? STATUS[est.status].rotulo : 'Não verificada'
     linhas.push(`${indent}  • ${est.nome}: ${ie} ${se}`)
-    if (est.status === 'pendencia' && est.obs) {
-      linhas.push(`${indent}     ↳ ${est.obs}`)
+    if (est.status === 'pendencia' && est.obs) linhas.push(`${indent}     ↳ ${est.obs}`)
+  }
+  return linhas
+}
+
+function linhasMaquina(maq, estacoes, indent, apenasCriticos = false) {
+  const estacoesDoMaq = estacoes.filter(e => e.maquina_id === maq.id)
+
+  if (apenasCriticos) {
+    // no modo crítico, só inclui máquina se ela ou alguma estação tiver parada/pendência
+    const maqCritica = maq.status === 'parada' || maq.status === 'pendencia'
+    const estCriticas = estacoesDoMaq.filter(e => e.status === 'parada' || e.status === 'pendencia')
+    if (!maqCritica && estCriticas.length === 0) return []
+
+    const linhas = []
+    if (maqCritica) {
+      linhas.push(`${indent}${STATUS[maq.status].emoji} ${maq.nome} — ${STATUS[maq.status].rotulo}`)
+      if (maq.status === 'pendencia' && maq.obs) linhas.push(`${indent}   ↳ ${maq.obs}`)
+    } else {
+      linhas.push(`${indent}⚠️ ${maq.nome}`) // tem estações críticas mas máquina ok
     }
+    linhas.push(...linhasEstacoes(estacoesDoMaq, indent, true))
+    return linhas
   }
 
-  return linhas
-}
-
-function linhasMaquina(maq, estacoes, indent) {
-  const linhas = []
   const ic = maq.status ? STATUS[maq.status].emoji : '⬜'
   const st = maq.status ? STATUS[maq.status].rotulo : 'Não verificada'
-  linhas.push(`${indent}${ic} ${maq.nome} — ${st}`)
+  const linhas = [`${indent}${ic} ${maq.nome} — ${st}`]
   if (maq.status === 'pendencia' && maq.obs) linhas.push(`${indent}   ↳ ${maq.obs}`)
-  const estacoesDoMaq = estacoes.filter(e => e.maquina_id === maq.id)
-  linhas.push(...linhasEstacoes(estacoesDoMaq, indent))
+  linhas.push(...linhasEstacoes(estacoesDoMaq, indent, false))
   return linhas
 }
 
-export function gerarTextoRelatorio({ setores, grupos = [], maquinas, estacoes, operador, agora }) {
+// Opções de filtro: 'todos' | 'criticos' (parada + pendência)
+export function gerarTextoRelatorio({
+  setores, grupos = [], maquinas, estacoes, operador, agora,
+  filtro = 'todos', // 'todos' | 'criticos'
+}) {
+  const apenasCriticos = filtro === 'criticos'
   const linhas = []
   const tot = { produzindo: 0, parada: 0, pendencia: 0, semCheck: 0 }
 
@@ -60,28 +76,48 @@ export function gerarTextoRelatorio({ setores, grupos = [], maquinas, estacoes, 
   }
 
   linhas.push('*RONDA DE PRODUÇÃO* 🏭')
+  if (apenasCriticos) linhas.push('⚠️ *Apenas pendências e paradas*')
   linhas.push(`📅 ${agora.toLocaleDateString('pt-BR')} ⏰ ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`)
   if (operador) linhas.push(`👤 ${operador}`)
   linhas.push('')
 
   for (const setor of setores) {
-    linhas.push(`*SETOR: ${setor.nome.toUpperCase()}*`)
-    const meusGrupos  = grupos.filter(g => g.setor_id === setor.id)
-    const maqDoSetor  = maquinas.filter(m => m.setor_id === setor.id)
+    const meusGrupos = grupos.filter(g => g.setor_id === setor.id)
+    const maqDoSetor = maquinas.filter(m => m.setor_id === setor.id)
+
+    // no modo crítico, verifica se o setor tem algo para mostrar antes de escrever o cabeçalho
+    const linhasSetor = []
 
     for (const grupo of meusGrupos) {
-      linhas.push(`  📦 *${grupo.nome}*`)
+      const linhasGrupo = []
       for (const maq of maqDoSetor.filter(m => m.grupo_id === grupo.id)) {
         contarTudo(maq, estacoes)
-        linhas.push(...linhasMaquina(maq, estacoes, '    '))
+        const lm = linhasMaquina(maq, estacoes, '    ', apenasCriticos)
+        linhasGrupo.push(...lm)
+      }
+      if (linhasGrupo.length > 0) {
+        linhasSetor.push(`  📦 *${grupo.nome}*`)
+        linhasSetor.push(...linhasGrupo)
       }
     }
 
     for (const maq of maqDoSetor.filter(m => !m.grupo_id)) {
       contarTudo(maq, estacoes)
-      linhas.push(...linhasMaquina(maq, estacoes, '  '))
+      linhasSetor.push(...linhasMaquina(maq, estacoes, '  ', apenasCriticos))
     }
 
+    if (linhasSetor.length > 0) {
+      linhas.push(`*SETOR: ${setor.nome.toUpperCase()}*`)
+      linhas.push(...linhasSetor)
+      linhas.push('')
+    } else if (!apenasCriticos) {
+      linhas.push(`*SETOR: ${setor.nome.toUpperCase()}*`)
+      linhas.push('')
+    }
+  }
+
+  if (apenasCriticos && linhas.filter(l => l.startsWith('*SETOR')).length === 0) {
+    linhas.push('✅ Nenhuma pendência ou parada registrada.')
     linhas.push('')
   }
 

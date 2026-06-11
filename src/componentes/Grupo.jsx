@@ -3,7 +3,7 @@ import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
 
 export default function Grupo({
-  grupo, maquinas, estacoes, gerenciar, operador,
+  grupo, maquinas, estacoes, gerenciar, operador, bloqueado,
   aoSalvarLote, aoAddMaquina, aoAddEstacao, aoExcluir, aoRenomear,
 }) {
   const [recolhido, setRecolhido]       = useState(false)
@@ -96,6 +96,7 @@ export default function Grupo({
               estacoes={estacoes}
               gerenciar={gerenciar}
               operador={operador}
+              bloqueado={bloqueado}
               aoSalvarLote={aoSalvarLote}
               aoAddEstacao={aoAddEstacao}
               aoExcluir={aoExcluir}

@@ -4,7 +4,7 @@ import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
 
 export default function Setor({
-  setor, grupos, maquinas, estacoes, gerenciar, operador,
+  setor, grupos, maquinas, estacoes, gerenciar, operador, bloqueado,
   aoSalvarLote, aoAddGrupo, aoAddMaquina, aoAddEstacao, aoExcluir, aoRenomear,
 }) {
   const [recolhido, setRecolhido]       = useState(false)
@@ -110,6 +110,7 @@ export default function Setor({
               estacoes={estacoes}
               gerenciar={gerenciar}
               operador={operador}
+              bloqueado={bloqueado}
               aoSalvarLote={aoSalvarLote}
               aoAddMaquina={aoAddMaquina}
               aoAddEstacao={aoAddEstacao}
@@ -128,6 +129,7 @@ export default function Setor({
                   estacoes={estacoes}
                   gerenciar={gerenciar}
                   operador={operador}
+                  bloqueado={bloqueado}
                   aoSalvarLote={aoSalvarLote}
                   aoAddEstacao={aoAddEstacao}
                   aoExcluir={aoExcluir}

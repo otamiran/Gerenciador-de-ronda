@@ -874,3 +874,68 @@ html, body {
 
 /* ajuste: rel-setores → rel-selecao (renomeado) */
 .rel-setores { display: none; } /* oculta o antigo se existir */
+
+/* ── operador obrigatório ───────────────────────────────── */
+.campo-operador-vazio {
+  border-color: var(--amarelo) !important;
+  box-shadow: 0 0 0 2px rgba(202,138,4,.25);
+  animation: pulso-campo 1.8s ease-in-out infinite;
+}
+@keyframes pulso-campo {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(202,138,4,.15); }
+  50%       { box-shadow: 0 0 0 4px rgba(202,138,4,.35); }
+}
+
+.aviso-operador {
+  background: var(--amarelo-bg); border: 1px solid #4A3A00;
+  color: #FCD34D; border-radius: 8px;
+  padding: 11px 14px; margin-bottom: 14px; font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── filtro conteúdo (relatório + histórico) ────────────── */
+.rel-filtro-barra {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 18px; border-bottom: 1px solid var(--borda);
+  background: var(--preto-painel);
+}
+.rel-filtro-label { font-size: 11px; color: var(--cinza-texto); text-transform: uppercase; letter-spacing: .5px; }
+
+.chip-filtro {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--cinza-escuro); border: 1.5px solid var(--borda-clara);
+  color: var(--cinza-texto); border-radius: 6px;
+  padding: 5px 11px; font-size: 12px; font-weight: 500;
+  cursor: pointer; font-family: inherit; transition: all .12s;
+}
+.chip-filtro:hover { border-color: var(--azul-brilho); color: var(--branco); }
+.chip-filtro.ativo {
+  background: var(--azul-medio); border-color: var(--azul-brilho); color: var(--branco);
+}
+.chip-filtro-critico.ativo {
+  background: var(--vermelho-bg); border-color: var(--vermelho); color: #F87171;
+}
+
+/* ── exportar no histórico ──────────────────────────────── */
+.hist-exportar {
+  border-top: 1px solid var(--borda);
+  background: var(--preto-painel);
+}
+.hist-exp-titulo {
+  padding: 10px 18px 0;
+  font-size: 11px; color: var(--cinza-texto);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.hist-exportar .rel-filtro-barra { border-bottom: none; padding: 8px 18px; }
+.hist-exportar .acoes-modal { padding: 8px 18px 12px; }
+
+.rel-selecao-hist {
+  padding: 8px 18px !important; max-height: 140px !important;
+}
+
+/* badge operador no histórico */
+.hist-badge-op {
+  background: var(--azul-escuro); border: 1px solid var(--borda-clara);
+  color: var(--branco-suave); border-radius: 4px;
+  padding: 2px 8px; font-size: 12px;
+}
