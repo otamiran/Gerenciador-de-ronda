@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import Grupo from './Grupo.jsx'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
@@ -83,7 +83,7 @@ export default function Setor({
 
           {maquinasSemGrupo.length > 0 && (
             <div className="maquinas-sem-grupo">
-              {maquinasSemGrupo.map((maq, idx) => (
+              {maquinasSemGrupo.map((maq) => (
                 <Maquina
                   key={maq.id}
                   maquina={maq}

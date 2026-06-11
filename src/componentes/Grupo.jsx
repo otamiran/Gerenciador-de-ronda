@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
 
@@ -59,7 +59,7 @@ export default function Grupo({
 
       {!recolhido && (
         <div className="corpo-grupo">
-          {maquinas.map((maq, idx) => (
+          {maquinas.map((maq) => (
             <Maquina
               key={maq.id}
               maquina={maq}
