@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { scrollParaMaquina } from '../utils.js'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
 

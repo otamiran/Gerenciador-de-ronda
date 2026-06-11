@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { scrollParaMaquina } from '../utils.js'
 import Grupo from './Grupo.jsx'
 import Maquina, { calcularCompletude } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
@@ -33,9 +34,7 @@ export default function Setor({
         if (pendente) {
           const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
           if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            el.classList.add('maquina-highlight')
-            setTimeout(() => el.classList.remove('maquina-highlight'), 800)
+            scrollParaMaquina(el)
           }
           return
         }
@@ -45,9 +44,7 @@ export default function Setor({
       if (pendenteSolta) {
         const el = document.querySelector(`[data-maquina-id="${pendenteSolta.id}"]`)
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          el.classList.add('maquina-highlight')
-          setTimeout(() => el.classList.remove('maquina-highlight'), 800)
+          scrollParaMaquina(el)
         }
       }
     }
@@ -61,9 +58,7 @@ export default function Setor({
       if (pendente) {
         const el = document.querySelector(`[data-maquina-id="${pendente.id}"]`)
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          el.classList.add('maquina-highlight')
-          setTimeout(() => el.classList.remove('maquina-highlight'), 800)
+          scrollParaMaquina(el)
         }
       }
     }
