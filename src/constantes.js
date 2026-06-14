@@ -12,23 +12,25 @@ function linhasEstacoes(estacoesDaMaquina, indent, apenasCriticos = false) {
     const criticas = estacoesDaMaquina.filter(e => e.status === 'parada' || e.status === 'pendencia')
     return criticas.flatMap(est => {
       const linhas = [`${indent}  • ${est.nome}: ${STATUS[est.status].emoji} ${STATUS[est.status].rotulo}`]
-      if (est.status === 'pendencia' && est.obs) linhas.push(`${indent}     ↳ ${est.obs}`)
+      if ((est.status === 'pendencia' || est.status === 'parada') && est.obs) linhas.push(`${indent}     ↳ ${est.obs}`)
       return linhas
     })
   }
 
-  const naoProduzindo = estacoesDaMaquina.filter(e => e.status !== 'produzindo')
+  // estações não confirmadas (sem status) são desconsideradas do texto
+  const confirmadas = estacoesDaMaquina.filter(e => e.status)
+  if (confirmadas.length === 0) return []
+
+  const naoProduzindo = confirmadas.filter(e => e.status !== 'produzindo')
   if (naoProduzindo.length === 0)
-    return [`${indent}  └ ${estacoesDaMaquina.length} estações: todas produzindo ✅`]
+    return [`${indent}  └ ${confirmadas.length} estações: todas produzindo ✅`]
 
   const linhas = []
-  const produzindoCount = estacoesDaMaquina.filter(e => e.status === 'produzindo').length
+  const produzindoCount = confirmadas.filter(e => e.status === 'produzindo').length
   if (produzindoCount > 0) linhas.push(`${indent}  └ ${produzindoCount} estação(ões) produzindo ✅`)
   for (const est of naoProduzindo) {
-    const ie = est.status ? STATUS[est.status].emoji : '⬜'
-    const se = est.status ? STATUS[est.status].rotulo : 'Não verificada'
-    linhas.push(`${indent}  • ${est.nome}: ${ie} ${se}`)
-    if (est.status === 'pendencia' && est.obs) linhas.push(`${indent}     ↳ ${est.obs}`)
+    linhas.push(`${indent}  • ${est.nome}: ${STATUS[est.status].emoji} ${STATUS[est.status].rotulo}`)
+    if ((est.status === 'pendencia' || est.status === 'parada') && est.obs) linhas.push(`${indent}     ↳ ${est.obs}`)
   }
   return linhas
 }
@@ -45,7 +47,7 @@ function linhasMaquina(maq, estacoes, indent, apenasCriticos = false) {
     const linhas = []
     if (maqCritica) {
       linhas.push(`${indent}${STATUS[maq.status].emoji} ${maq.nome} — ${STATUS[maq.status].rotulo}`)
-      if (maq.status === 'pendencia' && maq.obs) linhas.push(`${indent}   ↳ ${maq.obs}`)
+      if ((maq.status === 'pendencia' || maq.status === 'parada') && maq.obs) linhas.push(`${indent}   ↳ ${maq.obs}`)
     } else {
       linhas.push(`${indent}⚠️ ${maq.nome}`) // tem estações críticas mas máquina ok
     }
@@ -53,10 +55,11 @@ function linhasMaquina(maq, estacoes, indent, apenasCriticos = false) {
     return linhas
   }
 
-  const ic = maq.status ? STATUS[maq.status].emoji : '⬜'
-  const st = maq.status ? STATUS[maq.status].rotulo : 'Não verificada'
-  const linhas = [`${indent}${ic} ${maq.nome} — ${st}`]
-  if (maq.status === 'pendencia' && maq.obs) linhas.push(`${indent}   ↳ ${maq.obs}`)
+  // máquinas não confirmadas (sem status) são desconsideradas do texto
+  if (!maq.status) return []
+
+  const linhas = [`${indent}${STATUS[maq.status].emoji} ${maq.nome} — ${STATUS[maq.status].rotulo}`]
+  if ((maq.status === 'pendencia' || maq.status === 'parada') && maq.obs) linhas.push(`${indent}   ↳ ${maq.obs}`)
   linhas.push(...linhasEstacoes(estacoesDoMaq, indent, false))
   return linhas
 }

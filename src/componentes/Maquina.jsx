@@ -25,23 +25,30 @@ function buildRascunho(maquina, estacoes) {
   return draft
 }
 
+function placeholderObs(status) {
+  return status === 'parada'
+    ? 'Descreva o motivo da parada (opcional)…'
+    : 'Descreva a pendência de manutenção…'
+}
+
 // ── componente ────────────────────────────────────────────
 
 export default function Maquina({
   maquina, estacoes, gerenciar, bloqueado,
   aoSalvarLote, aoAddEstacao, aoExcluir, aoRenomear, operador,
+  aoMover, primeiro, ultimo,
 }) {
   const minhasEstacoes = estacoes.filter(e => e.maquina_id === maquina.id)
   const [draft, setDraft]         = useState(() => buildRascunho(maquina, minhasEstacoes))
   const [salvando, setSalvando]   = useState(false)
   const [salvoOk, setSalvoOk]     = useState(false)
-  const [recolhido, setRecolhido] = useState(false)
+  const [recolhido, setRecolhido] = useState(true)
   const [editandoNome, setEditing]= useState(false)
   const [novoNome, setNovoNome]   = useState(maquina.nome)
   const [obsAberta, setObsAberta] = useState(() => {
     const m = {}
-    if (maquina.status === 'pendencia') m['maquina'] = true
-    minhasEstacoes.forEach(e => { if (e.status === 'pendencia') m[e.id] = true })
+    if (maquina.status === 'pendencia' || maquina.status === 'parada') m['maquina'] = true
+    minhasEstacoes.forEach(e => { if (e.status === 'pendencia' || e.status === 'parada') m[e.id] = true })
     return m
   })
 
@@ -100,7 +107,7 @@ export default function Maquina({
       }
       return { ...d, maquina: { ...d.maquina, status }, estacoes: novasEstacoes }
     })
-    setObsAberta(o => ({ ...o, maquina: status === 'pendencia' }))
+    setObsAberta(o => ({ ...o, maquina: status === 'pendencia' || status === 'parada' }))
     if (status === 'produzindo') {
       setObsAberta({ maquina: false })
       // colapsa estações se existirem
@@ -116,7 +123,7 @@ export default function Maquina({
       ...d,
       estacoes: { ...d.estacoes, [estId]: { ...(d.estacoes[estId] || {}), status } },
     }))
-    setObsAberta(o => ({ ...o, [estId]: status === 'pendencia' }))
+    setObsAberta(o => ({ ...o, [estId]: status === 'pendencia' || status === 'parada' }))
   }
 
   const setObs = (key, obs) => {
@@ -150,10 +157,10 @@ export default function Maquina({
 
       <div
         className="linha-maquina"
-        onClick={() => temEstacoes && !editandoNome && setRecolhido(r => !r)}
-        style={{ cursor: temEstacoes ? 'pointer' : 'default' }}
+        onClick={() => (temEstacoes || gerenciar) && !editandoNome && setRecolhido(r => !r)}
+        style={{ cursor: (temEstacoes || gerenciar) ? 'pointer' : 'default' }}
       >
-        {temEstacoes && <span className="seta-maquina">{recolhido ? '▸' : '▾'}</span>}
+        {(temEstacoes || gerenciar) && <span className="seta-maquina">{recolhido ? '▸' : '▾'}</span>}
 
         <Andon status={draftMaqStatus} />
 
@@ -196,6 +203,12 @@ export default function Maquina({
         </div>
 
         <div className="maquina-acoes" onClick={e => e.stopPropagation()}>
+          {gerenciar && (
+            <div className="acoes-reordenar">
+              <button className="btn-mover" disabled={primeiro} onClick={() => aoMover(-1)} title="Mover máquina para cima">▲</button>
+              <button className="btn-mover" disabled={ultimo} onClick={() => aoMover(1)} title="Mover máquina para baixo">▼</button>
+            </div>
+          )}
           <BotoesStatus status={draftMaqStatus} aoMarcar={marcarMaquina} bloqueado={bloqueado} />
         </div>
       </div>
@@ -205,7 +218,7 @@ export default function Maquina({
           <textarea
             value={draft.maquina.obs}
             onChange={e => setObs('maquina', e.target.value)}
-            placeholder="Descreva a pendência de manutenção…"
+            placeholder={placeholderObs(draft.maquina.status)}
             rows={2}
           />
         </div>
@@ -244,7 +257,7 @@ export default function Maquina({
                     <textarea
                       value={draft.estacoes[est.id]?.obs || ''}
                       onChange={e => setObs(est.id, e.target.value)}
-                      placeholder="Descreva a pendência…"
+                      placeholder={placeholderObs(est.status)}
                       rows={2}
                     />
                   </div>

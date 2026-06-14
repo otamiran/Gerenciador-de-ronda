@@ -6,8 +6,9 @@ import AdicionarInline from './AdicionarInline.jsx'
 export default function Setor({
   setor, grupos, maquinas, estacoes, gerenciar, operador, bloqueado,
   aoSalvarLote, aoAddGrupo, aoAddMaquina, aoAddEstacao, aoExcluir, aoRenomear,
+  aoMoverGrupo, aoMoverMaquina,
 }) {
-  const [recolhido, setRecolhido]       = useState(false)
+  const [recolhido, setRecolhido]       = useState(true)
   const [editandoNome, setEditandoNome] = useState(false)
   const [novoNome, setNovoNome]         = useState(setor.nome)
 
@@ -78,12 +79,16 @@ export default function Setor({
               aoAddEstacao={aoAddEstacao}
               aoExcluir={aoExcluir}
               aoRenomear={aoRenomear}
+              aoMoverMaquina={aoMoverMaquina}
+              aoMover={dir => aoMoverGrupo(grupo.id, dir)}
+              primeiro={grupoIdx === 0}
+              ultimo={grupoIdx === meusGrupos.length - 1}
             />
           ))}
 
           {maquinasSemGrupo.length > 0 && (
             <div className="maquinas-sem-grupo">
-              {maquinasSemGrupo.map((maq) => (
+              {maquinasSemGrupo.map((maq, maqIdx) => (
                 <Maquina
                   key={maq.id}
                   maquina={maq}
@@ -95,6 +100,9 @@ export default function Setor({
                   aoAddEstacao={aoAddEstacao}
                   aoExcluir={aoExcluir}
                   aoRenomear={aoRenomear}
+                  aoMover={dir => aoMoverMaquina(maq.id, dir)}
+                  primeiro={maqIdx === 0}
+                  ultimo={maqIdx === maquinasSemGrupo.length - 1}
                 />
               ))}
             </div>

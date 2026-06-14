@@ -5,8 +5,9 @@ import AdicionarInline from './AdicionarInline.jsx'
 export default function Grupo({
   grupo, maquinas, estacoes, gerenciar, operador, bloqueado,
   aoSalvarLote, aoAddMaquina, aoAddEstacao, aoExcluir, aoRenomear,
+  aoMoverMaquina, aoMover, primeiro, ultimo,
 }) {
-  const [recolhido, setRecolhido]       = useState(false)
+  const [recolhido, setRecolhido]       = useState(true)
   const [editandoNome, setEditandoNome] = useState(false)
   const [novoNome, setNovoNome]         = useState(grupo.nome)
 
@@ -53,13 +54,20 @@ export default function Grupo({
         </div>
 
         {gerenciar && !editandoNome && (
+          <div className="acoes-reordenar" onClick={e => e.stopPropagation()}>
+            <button className="btn-mover" disabled={primeiro} onClick={() => aoMover(-1)} title="Mover grupo para cima">▲</button>
+            <button className="btn-mover" disabled={ultimo} onClick={() => aoMover(1)} title="Mover grupo para baixo">▼</button>
+          </div>
+        )}
+
+        {gerenciar && !editandoNome && (
           <button className="excluir" onClick={e => { e.stopPropagation(); if (window.confirm(`Excluir o grupo "${grupo.nome}" e todas as suas máquinas?`)) aoExcluir('grupos', grupo.id) }}>✕</button>
         )}
       </div>
 
       {!recolhido && (
         <div className="corpo-grupo">
-          {maquinas.map((maq) => (
+          {maquinas.map((maq, maqIdx) => (
             <Maquina
               key={maq.id}
               maquina={maq}
@@ -71,6 +79,9 @@ export default function Grupo({
               aoAddEstacao={aoAddEstacao}
               aoExcluir={aoExcluir}
               aoRenomear={aoRenomear}
+              aoMover={dir => aoMoverMaquina(maq.id, dir)}
+              primeiro={maqIdx === 0}
+              ultimo={maqIdx === maquinas.length - 1}
             />
           ))}
           {gerenciar && <AdicionarInline rotulo="+ máquina" aoAdicionar={n => aoAddMaquina(grupo.id, n)} />}

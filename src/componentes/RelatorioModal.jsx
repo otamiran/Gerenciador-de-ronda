@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react'
 import { gerarTextoRelatorio } from '../constantes.js'
 
 export default function RelatorioModal({ setores, grupos, maquinas, estacoes, operador, aoFechar }) {
-  const [setoresSel, setSetoresSel] = useState(() => new Set(setores.map(s => s.id)))
-  const [gruposSel,  setGruposSel]  = useState(() => new Set(grupos.map(g => g.id)))
+  const [setoresSel, setSetoresSel] = useState(() => new Set())
+  const [gruposSel,  setGruposSel]  = useState(() => new Set())
   const [filtro,     setFiltro]     = useState('todos') // 'todos' | 'criticos'
   const [copiado,    setCopiado]    = useState(false)
 

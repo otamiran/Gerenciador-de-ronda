@@ -6,6 +6,7 @@ import RelatorioModal from './componentes/RelatorioModal.jsx'
 import HistoricoModal from './componentes/HistoricoModal.jsx'
 import AdicionarInline from './componentes/AdicionarInline.jsx'
 import LoginAdmin from './componentes/LoginAdmin.jsx'
+import logo from './assets/logo.png'
 
 export default function App() {
   const [setores, setSetores]   = useState([])
@@ -63,16 +64,17 @@ export default function App() {
   const salvarLote = useCallback(async (maquinaId, draftMaq, draftEst, op) => {
     const usuario = op || '—'
     const agora   = new Date().toISOString()
+    const temObs  = status => status === 'pendencia' || status === 'parada'
     const promessas = [
       supabase.from('maquinas').update({
         status: draftMaq.status,
-        obs: draftMaq.status === 'pendencia' ? (draftMaq.obs || '') : '',
+        obs: temObs(draftMaq.status) ? (draftMaq.obs || '') : '',
         usuario, atualizado_em: agora,
       }).eq('id', maquinaId),
       ...Object.entries(draftEst).map(([estId, d]) =>
         supabase.from('estacoes').update({
           status: d.status,
-          obs: d.status === 'pendencia' ? (d.obs || '') : '',
+          obs: temObs(d.status) ? (d.obs || '') : '',
           usuario, atualizado_em: agora,
         }).eq('id', estId)
       ),
@@ -135,6 +137,39 @@ export default function App() {
     if (error) setErro(`Erro: ${error.message}`)
   }
 
+  // ── reordenar ─────────────────────────────────────────────
+  const reordenarLista = async (tabela, lista, id, direcao) => {
+    const ordenados = lista.slice().sort((a, b) =>
+      (a.ordem ?? 0) - (b.ordem ?? 0) || (a.criado_em || '').localeCompare(b.criado_em || '')
+    )
+    const idx = ordenados.findIndex(i => i.id === id)
+    const novoIdx = idx + direcao
+    if (idx === -1 || novoIdx < 0 || novoIdx >= ordenados.length) return
+    const trocado = ordenados.slice()
+    ;[trocado[idx], trocado[novoIdx]] = [trocado[novoIdx], trocado[idx]]
+    const resultados = await Promise.all(
+      trocado.map((item, i) => supabase.from(tabela).update({ ordem: i }).eq('id', item.id))
+    )
+    const erroEnc = resultados.find(r => r.error)
+    if (erroEnc) setErro(`Erro ao reordenar: ${erroEnc.error.message}`)
+  }
+
+  const moverGrupo = (grupoId, direcao) => {
+    const grupo = grupos.find(g => g.id === grupoId)
+    if (!grupo) return
+    const irmaos = grupos.filter(g => g.setor_id === grupo.setor_id)
+    reordenarLista('grupos', irmaos, grupoId, direcao)
+  }
+
+  const moverMaquina = (maquinaId, direcao) => {
+    const maquina = maquinas.find(m => m.id === maquinaId)
+    if (!maquina) return
+    const irmas = maquina.grupo_id
+      ? maquinas.filter(m => m.grupo_id === maquina.grupo_id)
+      : maquinas.filter(m => !m.grupo_id && m.setor_id === maquina.setor_id)
+    reordenarLista('maquinas', irmas, maquinaId, direcao)
+  }
+
   const excluir = async (tabela, id) => {
     const { error } = await supabase.from(tabela).delete().eq('id', id)
     if (error) setErro(`Erro: ${error.message}`)
@@ -185,8 +220,8 @@ export default function App() {
     <div className="app">
       <header className="topo">
         <div className="marca">
-          <span className="andon-marca">
-            <span className="bm vermelho" /><span className="bm amarelo" /><span className="bm verde" />
+          <span className="logo-marca-wrap">
+            <img src={logo} alt="Ronda Manutenção" className="logo-marca" />
           </span>
           <div>
             <h1>Ronda de Produção</h1>
@@ -243,6 +278,8 @@ export default function App() {
             aoAddEstacao={addEstacao}
             aoExcluir={excluir}
             aoRenomear={renomear}
+            aoMoverGrupo={moverGrupo}
+            aoMoverMaquina={moverMaquina}
           />
         ))}
 

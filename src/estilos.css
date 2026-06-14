@@ -65,14 +65,15 @@ html, body {
 
 .marca { display: flex; align-items: center; gap: 12px; }
 
-.andon-marca {
-  display: flex; flex-direction: column; gap: 3px; padding: 5px;
-  background: var(--preto); border-radius: 5px; border: 1px solid var(--borda);
+.logo-marca-wrap {
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border-radius: 8px; padding: 3px;
+  border: 1px solid var(--borda); flex-shrink: 0;
 }
-.bm { width: 10px; height: 10px; border-radius: 50%; }
-.bm.vermelho { background: var(--vermelho); box-shadow: 0 0 5px var(--vermelho); }
-.bm.amarelo  { background: var(--amarelo);  box-shadow: 0 0 5px var(--amarelo); }
-.bm.verde    { background: var(--verde);    box-shadow: 0 0 5px var(--verde); }
+.logo-marca {
+  display: block; height: 38px; width: 38px;
+  object-fit: contain; border-radius: 5px;
+}
 
 .topo h1 {
   font-size: 16px; font-weight: 700; letter-spacing: .8px;
@@ -560,7 +561,19 @@ html, body {
 }
 
 /* ── rodapé salvar máquina ──────────────────────────────── */
-.maquina-acoes { display: flex; align-items: center; }
+.maquina-acoes { display: flex; align-items: center; gap: 8px; }
+
+/* ── botões de reordenar (grupos / máquinas) ────────────── */
+.acoes-reordenar { display: flex; flex-direction: column; gap: 2px; }
+.btn-mover {
+  background: var(--cinza-medio); border: 1px solid var(--borda-clara);
+  color: var(--branco-suave); border-radius: 4px;
+  width: 22px; height: 18px; font-size: 9px; line-height: 1;
+  cursor: pointer; font-family: inherit; transition: all .12s;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-mover:hover:not(:disabled) { border-color: var(--azul-brilho); color: var(--branco); }
+.btn-mover:disabled { opacity: .3; cursor: not-allowed; }
 
 .maquina-rodape {
   display: flex; align-items: center; justify-content: flex-end; gap: 10px;
