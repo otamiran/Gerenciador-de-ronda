@@ -980,3 +980,149 @@ html, body {
   padding: 4px 6px; align-self: center;
   opacity: .7;
 }
+
+
+/* ═══════════════════════════════════════════════════════════
+   MELHORIAS MOBILE / PWA
+   ═══════════════════════════════════════════════════════════ */
+
+/* Safe area para iPhone com notch/Dynamic Island */
+.app {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+.topo {
+  padding-top: calc(13px + env(safe-area-inset-top));
+  padding-left: calc(18px + env(safe-area-inset-left));
+  padding-right: calc(18px + env(safe-area-inset-right));
+}
+.rodape {
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
+}
+
+/* Touch targets mínimos de 44px (Apple HIG) */
+.botao-status {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 14px;
+}
+.linha-status.compacto .botao-status {
+  min-height: 38px;
+  min-width: 38px;
+  padding: 8px 10px;
+}
+.btn-salvar-maquina {
+  min-height: 44px;
+  padding: 10px 20px;
+}
+.fantasma, .primario, .secundario {
+  min-height: 44px;
+}
+.chip-estacao-clicavel {
+  min-height: 38px;
+  padding: 6px 12px;
+}
+
+/* Ponto da estação — área de toque maior */
+.ponto-estacao {
+  min-width: 18px;
+  min-height: 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  /* Área de toque invisível ao redor */
+  padding: 8px;
+  margin: -8px;
+  background-clip: content-box;
+}
+
+/* Nome clicável: feedback visual ao toque */
+.nome-maquina-clicavel:active,
+.nome-estacao-clicavel:active {
+  opacity: 0.7;
+}
+.nome-maquina-clicavel {
+  border-bottom: 1px dashed var(--cinza-claro);
+  padding-bottom: 1px;
+}
+.nome-estacao-clicavel {
+  border-bottom: 1px dashed var(--cinza-claro);
+  padding-bottom: 1px;
+}
+
+/* Scroll suave no iOS */
+.conteudo {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Evita zoom ao focar input no iOS (font-size mínimo 16px) */
+input, textarea, select {
+  font-size: 16px !important;
+}
+/* Mas compensa visualmente onde precisar de texto menor */
+.input-renomear {
+  font-size: 15px !important;
+}
+
+/* Responsivo: topo em coluna em telas muito pequenas */
+@media (max-width: 480px) {
+  .topo {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .topo-acoes {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .campo-operador {
+    flex: 1;
+    width: auto;
+    min-width: 120px;
+  }
+  .fantasma {
+    font-size: 12px;
+    padding: 7px 9px;
+  }
+  .conteudo {
+    padding: 12px 10px;
+  }
+  .linha-maquina {
+    gap: 8px;
+  }
+  /* Botões de status em mobile: um por linha se necessário */
+  .linha-status {
+    flex-wrap: wrap;
+  }
+  .botao-status {
+    flex: 1;
+    text-align: center;
+  }
+  .rodape {
+    gap: 8px;
+  }
+  .primario, .secundario {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+/* Previne seleção de texto acidental ao clicar rápido */
+.cabecalho-setor,
+.cabecalho-grupo,
+.linha-maquina,
+.chip-estacao-clicavel,
+.nome-maquina-clicavel,
+.nome-estacao-clicavel {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Feedback de toque nos chips e botões */
+.chip-estacao-clicavel:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.botao-status:active:not(:disabled) {
+  transform: scale(0.95);
+}

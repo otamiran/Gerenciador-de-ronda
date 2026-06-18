@@ -31,6 +31,13 @@ function placeholderObs(status) {
     : 'Descreva a pendência de manutenção…'
 }
 
+// Ciclo de status: sem status → produzindo → parada → pendencia → produzindo → …
+const CICLO = [undefined, 'produzindo', 'parada', 'pendencia']
+function proximoStatus(atual) {
+  const idx = CICLO.indexOf(atual ?? undefined)
+  return CICLO[(idx + 1) % CICLO.length]
+}
+
 // ── componente ────────────────────────────────────────────
 
 export default function Maquina({
@@ -97,25 +104,38 @@ export default function Maquina({
   }, [completo, temPendente, salvar])
 
   // ── handlers ──────────────────────────────────────────────
+
+  // Marcar máquina: ao escolher "produzindo", só marca estações que ainda NÃO foram
+  // explicitamente definidas como "parada" ou "pendencia" (respeita intenção do operador)
   const marcarMaquina = status => {
     setDraft(d => {
       const novasEstacoes = { ...d.estacoes }
       if (status === 'produzindo' && temEstacoes) {
         minhasEstacoes.forEach(e => {
-          novasEstacoes[e.id] = { ...(novasEstacoes[e.id] || {}), status: 'produzindo', obs: '' }
+          const estAtual = novasEstacoes[e.id]?.status
+          // só muda para "produzindo" se a estação NÃO estiver marcada como parada/pendência
+          if (estAtual !== 'parada' && estAtual !== 'pendencia') {
+            novasEstacoes[e.id] = { ...(novasEstacoes[e.id] || {}), status: 'produzindo', obs: '' }
+          }
         })
       }
       return { ...d, maquina: { ...d.maquina, status }, estacoes: novasEstacoes }
     })
     setObsAberta(o => ({ ...o, maquina: status === 'pendencia' || status === 'parada' }))
     if (status === 'produzindo') {
-      setObsAberta({ maquina: false })
-      // colapsa estações se existirem
-      if (temEstacoes) setRecolhido(true)
+      setObsAberta(o => ({ ...o, maquina: false }))
+      if (temEstacoes) setRecolhido(false) // expande para mostrar estações paradas
     }
     if ((status === 'parada' || status === 'pendencia') && temEstacoes) {
       setRecolhido(false)
     }
+  }
+
+  // Click no andon/nome da máquina cicla o status
+  const ciclarMaquina = e => {
+    e.stopPropagation()
+    if (bloqueado || gerenciar || editandoNome) return
+    marcarMaquina(proximoStatus(draft.maquina.status))
   }
 
   const marcarEstacao = (estId, status) => {
@@ -124,6 +144,13 @@ export default function Maquina({
       estacoes: { ...d.estacoes, [estId]: { ...(d.estacoes[estId] || {}), status } },
     }))
     setObsAberta(o => ({ ...o, [estId]: status === 'pendencia' || status === 'parada' }))
+  }
+
+  // Click no ponto colorido da estação cicla o status
+  const ciclarEstacao = (estId, statusAtual, e) => {
+    e.stopPropagation()
+    if (bloqueado || gerenciar) return
+    marcarEstacao(estId, proximoStatus(statusAtual))
   }
 
   const setObs = (key, obs) => {
@@ -162,7 +189,14 @@ export default function Maquina({
       >
         {(temEstacoes || gerenciar) && <span className="seta-maquina">{recolhido ? '▸' : '▾'}</span>}
 
-        <Andon status={draftMaqStatus} />
+        {/* Andon clicável para ciclar status */}
+        <span
+          onClick={ciclarMaquina}
+          title={bloqueado || gerenciar ? undefined : `Clique para alternar status: ${draftMaqStatus ? STATUS[draftMaqStatus].rotulo : 'sem status'}`}
+          style={{ cursor: bloqueado || gerenciar ? 'default' : 'pointer' }}
+        >
+          <Andon status={draftMaqStatus} />
+        </span>
 
         <div className="info-maquina">
           <div className="nome-maquina">
@@ -177,7 +211,15 @@ export default function Maquina({
               />
             ) : (
               <>
-                {maquina.nome}
+                {/* Nome clicável para ciclar status */}
+                <span
+                  onClick={ciclarMaquina}
+                  title={bloqueado || gerenciar ? undefined : 'Clique para alternar status'}
+                  style={{ cursor: bloqueado || gerenciar ? 'inherit' : 'pointer' }}
+                  className={!bloqueado && !gerenciar ? 'nome-maquina-clicavel' : ''}
+                >
+                  {maquina.nome}
+                </span>
                 {gerenciar && (
                   <button className="btn-editar" onClick={e => { e.stopPropagation(); setNovoNome(maquina.nome); setEditing(true) }} title="Renomear">✏️</button>
                 )}
@@ -197,7 +239,7 @@ export default function Maquina({
               </span>
             )}
             {temEstacoes && !draftMaqStatus && (
-              <span className="dica-marcar-tudo">▸ "Produzindo" marca todas as estações</span>
+              <span className="dica-marcar-tudo">Toque no nome ou andon para alternar status</span>
             )}
           </div>
         </div>
@@ -238,11 +280,31 @@ export default function Maquina({
             return (
               <div key={est.id} className={`estacao ${mostrarCompacto ? 'estacao-compacta' : ''} ${estaOk && !mostrarCompacto ? 'estacao-ok' : ''}`}>
                 <div className="linha-estacao">
-                  <span className="ponto-estacao" style={{ background: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)' }} />
+                  {/* Ponto colorido clicável para ciclar status */}
+                  <span
+                    className="ponto-estacao"
+                    style={{
+                      background: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)',
+                      cursor: bloqueado || gerenciar ? 'default' : 'pointer',
+                      transition: 'transform .12s',
+                    }}
+                    onClick={e => ciclarEstacao(est.id, est.status, e)}
+                    title={bloqueado || gerenciar ? undefined : `Clique para alternar: ${est.nome}`}
+                  />
                   <span className="nome-estacao">
                     {gerenciar ? (
                       <RenomearEstacao est={est} aoRenomear={aoRenomear} aoExcluir={aoExcluir} />
-                    ) : est.nome}
+                    ) : (
+                      // Nome da estação também clicável
+                      <span
+                        onClick={e => ciclarEstacao(est.id, est.status, e)}
+                        style={{ cursor: bloqueado ? 'default' : 'pointer' }}
+                        title={bloqueado ? undefined : `Clique para alternar: ${est.nome}`}
+                        className={!bloqueado ? 'nome-estacao-clicavel' : ''}
+                      >
+                        {est.nome}
+                      </span>
+                    )}
                   </span>
                   {mostrarCompacto ? (
                     <span className="estacao-status-icon" onClick={e => { e.stopPropagation(); setRecolhido(false) }}>
@@ -275,11 +337,6 @@ export default function Maquina({
       {temEstacoes && recolhido && (
         <div className="resumo-recolhido">
           {draftEstObj.map(est => {
-            // ciclo: undefined → produzindo → parada → pendencia → produzindo → ...
-            const ciclo = [undefined, 'produzindo', 'parada', 'pendencia']
-            const idxAtual = ciclo.indexOf(est.status ?? undefined)
-            const proximoStatus = ciclo[(idxAtual + 1) % ciclo.length]
-
             const cor   = est.status ? STATUS[est.status].cor : 'var(--cinza-claro)'
             const emoji = est.status ? STATUS[est.status].emoji : '⬜'
 
@@ -300,7 +357,7 @@ export default function Maquina({
                 }}
                 onClick={e => {
                   e.stopPropagation()
-                  if (!bloqueado) marcarEstacao(est.id, proximoStatus)
+                  if (!bloqueado) marcarEstacao(est.id, proximoStatus(est.status))
                 }}
                 disabled={bloqueado}
                 title={`${est.nome}: clique para alternar status`}
