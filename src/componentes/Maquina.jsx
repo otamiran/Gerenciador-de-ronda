@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { STATUS } from '../constantes.js'
 import Andon from './Andon.jsx'
 import BotoesStatus from './BotoesStatus.jsx'
@@ -33,7 +33,7 @@ function placeholderObs(status) {
 
 // Ciclo de status: sem status → produzindo → parada → pendencia → produzindo → …
 const CICLO = [undefined, 'produzindo', 'parada', 'pendencia']
-function proximoStatus(atual) {
+export function proximoStatus(atual) {
   const idx = CICLO.indexOf(atual ?? undefined)
   return CICLO[(idx + 1) % CICLO.length]
 }
@@ -96,12 +96,16 @@ export default function Maquina({
     setTimeout(() => setSalvoOk(false), 1800)
   }, [salvando, aoSalvarLote, maquina.id, draft, operador])
 
-  // auto-salva quando completo
-  const prevCompleto = useRef(completo)
+  // auto-salva qualquer alteração pendente (não só quando 100% completo).
+  // Debounce curto quando a máquina fica completa (feedback rápido) e um
+  // pouco maior enquanto o operador ainda está digitando/alternando status,
+  // para não disparar uma gravação a cada tecla.
   useEffect(() => {
-    if (completo && !prevCompleto.current && temPendente) salvar()
-    prevCompleto.current = completo
-  }, [completo, temPendente, salvar])
+    if (!temPendente) return
+    const atraso = completo ? 300 : 1200
+    const id = setTimeout(() => { salvar() }, atraso)
+    return () => clearTimeout(id)
+  }, [draft, temPendente, completo, salvar])
 
   // ── handlers ──────────────────────────────────────────────
 
@@ -374,9 +378,9 @@ export default function Maquina({
 
       {temPendente && (
         <div className="maquina-rodape">
-          <span className="maquina-rodape-hint">Alterações não salvas</span>
+          <span className="maquina-rodape-hint">Salvando automaticamente…</span>
           <button className="btn-salvar-maquina" onClick={salvar} disabled={salvando}>
-            {salvando ? 'Salvando…' : 'Salvar'}
+            {salvando ? 'Salvando…' : 'Salvar agora'}
           </button>
         </div>
       )}

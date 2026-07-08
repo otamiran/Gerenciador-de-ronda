@@ -71,17 +71,10 @@ export function gerarTextoRelatorio({
 }) {
   const apenasCriticos = filtro === 'criticos'
   const linhas = []
-  const tot = { produzindo: 0, parada: 0, pendencia: 0, semCheck: 0 }
-
-  const contarTudo = (maq, ests) => {
-    maq.status ? tot[maq.status]++ : tot.semCheck++
-    ests.filter(e => e.maquina_id === maq.id).forEach(e => e.status ? tot[e.status]++ : tot.semCheck++)
-  }
 
   linhas.push('*RONDA DE PRODUÇÃO* 🏭')
   if (apenasCriticos) linhas.push('⚠️ *Apenas pendências e paradas*')
   linhas.push(`📅 ${agora.toLocaleDateString('pt-BR')} ⏰ ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`)
-  if (operador) linhas.push(`👤 ${operador}`)
   linhas.push('')
 
   for (const setor of setores) {
@@ -94,7 +87,6 @@ export function gerarTextoRelatorio({
     for (const grupo of meusGrupos) {
       const linhasGrupo = []
       for (const maq of maqDoSetor.filter(m => m.grupo_id === grupo.id)) {
-        contarTudo(maq, estacoes)
         const lm = linhasMaquina(maq, estacoes, '    ', apenasCriticos)
         linhasGrupo.push(...lm)
       }
@@ -105,7 +97,6 @@ export function gerarTextoRelatorio({
     }
 
     for (const maq of maqDoSetor.filter(m => !m.grupo_id)) {
-      contarTudo(maq, estacoes)
       linhasSetor.push(...linhasMaquina(maq, estacoes, '  ', apenasCriticos))
     }
 
@@ -124,9 +115,8 @@ export function gerarTextoRelatorio({
     linhas.push('')
   }
 
-  linhas.push(
-    `*Resumo:* ${tot.produzindo} produzindo | ${tot.parada} parada(s) | ${tot.pendencia} pendência(s)` +
-    (tot.semCheck ? ` | ${tot.semCheck} não verificada(s)` : '')
-  )
+  // remove linha em branco solta no final, se houver
+  while (linhas.length && linhas[linhas.length - 1] === '') linhas.pop()
+
   return linhas.join('\n')
 }

@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import Maquina, { calcularCompletude } from './Maquina.jsx'
+import Maquina, { calcularCompletude, proximoStatus } from './Maquina.jsx'
 import AdicionarInline from './AdicionarInline.jsx'
+import { STATUS } from '../constantes.js'
+
+const temObsStatus = status => status === 'pendencia' || status === 'parada'
 
 export default function Grupo({
   grupo, maquinas, estacoes, gerenciar, operador, bloqueado,
@@ -19,6 +22,31 @@ export default function Grupo({
     if (novoNome.trim() && novoNome.trim() !== grupo.nome)
       aoRenomear('grupos', grupo.id, novoNome.trim())
     setEditandoNome(false)
+  }
+
+  // Clique no chip do equipamento (visão recolhida) cicla o status da
+  // máquina, do mesmo jeito que o clique nas estações dentro dela.
+  const ciclarMaquina = (maq, e) => {
+    e.stopPropagation()
+    if (bloqueado) return
+    const novoStatus = proximoStatus(maq.status)
+
+    // Ao marcar "produzindo", propaga para as estações que ainda não foram
+    // explicitamente marcadas como parada/pendência — mesmo comportamento
+    // da visão expandida da máquina.
+    const draftEst = {}
+    if (novoStatus === 'produzindo') {
+      estacoes
+        .filter(e2 => e2.maquina_id === maq.id && e2.status !== 'parada' && e2.status !== 'pendencia')
+        .forEach(e2 => { draftEst[e2.id] = { status: 'produzindo', obs: '' } })
+    }
+
+    aoSalvarLote(
+      maq.id,
+      { status: novoStatus, obs: temObsStatus(novoStatus) ? (maq.obs || '') : '' },
+      draftEst,
+      operador,
+    )
   }
 
   return (
@@ -92,10 +120,30 @@ export default function Grupo({
         <div className="resumo-grupo-recolhido">
           {maquinas.map(m => {
             const { completo } = calcularCompletude(m, estacoes)
+            const cor   = m.status ? STATUS[m.status].cor : 'var(--cinza-claro)'
+            const emoji = m.status ? STATUS[m.status].emoji : (completo ? '✓' : '·')
             return (
-              <span key={m.id} className={`chip-maquina-mini ${completo ? 'chip-ok' : ''}`} title={completo ? 'Concluída' : 'Pendente'}>
-                {completo ? '✓' : '·'} {m.nome}
-              </span>
+              <button
+                key={m.id}
+                type="button"
+                className={`chip-maquina-mini chip-estacao-clicavel ${completo ? 'chip-ok' : ''}`}
+                style={{
+                  borderColor: cor,
+                  color: m.status ? cor : 'var(--cinza-texto)',
+                  background: m.status === 'produzindo'
+                    ? 'var(--verde-bg)'
+                    : m.status === 'parada'
+                    ? 'var(--amarelo-bg)'
+                    : m.status === 'pendencia'
+                    ? 'var(--vermelho-bg)'
+                    : 'transparent',
+                }}
+                onClick={e => ciclarMaquina(m, e)}
+                disabled={bloqueado}
+                title={bloqueado ? undefined : `${m.nome}: clique para alternar status`}
+              >
+                {emoji} {m.nome}
+              </button>
             )
           })}
         </div>
