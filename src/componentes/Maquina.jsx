@@ -102,7 +102,7 @@ export default function Maquina({
   // para não disparar uma gravação a cada tecla.
   useEffect(() => {
     if (!temPendente) return
-    const atraso = completo ? 300 : 1200
+    const atraso = completo ? 10000 : 10000
     const id = setTimeout(() => { salvar() }, atraso)
     return () => clearTimeout(id)
   }, [draft, temPendente, completo, salvar])
