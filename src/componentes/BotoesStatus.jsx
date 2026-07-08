@@ -10,7 +10,7 @@ export default function BotoesStatus({ status, aoMarcar, compacto, bloqueado }) 
             key={chave}
             className="botao-status"
             disabled={bloqueado}
-            onClick={() => !bloqueado && aoMarcar(chave)}
+            onClick={() => !bloqueado && aoMarcar(ativo ? undefined : chave)}
             title={bloqueado ? 'Digite seu nome para começar a ronda' : cfg.rotulo}
             style={{
               background:   ativo && !bloqueado ? cfg.cor : 'transparent',
