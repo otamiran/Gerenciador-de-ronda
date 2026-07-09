@@ -100,12 +100,12 @@ export default function Maquina({
   // Debounce curto quando a máquina fica completa (feedback rápido) e um
   // pouco maior enquanto o operador ainda está digitando/alternando status,
   // para não disparar uma gravação a cada tecla.
-  useEffect(() => {
-    if (!temPendente) return
-    const atraso = completo ? 300 : 1200
-    const id = setTimeout(() => { salvar() }, atraso)
-    return () => clearTimeout(id)
-  }, [draft, temPendente, completo, salvar])
+//  useEffect(() => {
+   // if (!temPendente) return
+   // const atraso = completo ? 10000 : 10000
+   // const id = setTimeout(() => { salvar() }, atraso)
+   // return () => clearTimeout(id)
+  // }, [draft, temPendente, completo, salvar])
 
   // ── handlers ──────────────────────────────────────────────
 
