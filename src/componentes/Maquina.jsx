@@ -105,7 +105,7 @@ export default function Maquina({
    // const atraso = completo ? 10000 : 10000
    // const id = setTimeout(() => { salvar() }, atraso)
    // return () => clearTimeout(id)
-  }, [draft, temPendente, completo, salvar])
+  // }, [draft, temPendente, completo, salvar])
 
   // ── handlers ──────────────────────────────────────────────
 
