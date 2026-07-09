@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   CHAVE_DB, listar, inserir, inserirVarios, atualizar,
-  atualizarTodos, excluir as excluirLinha,
+  atualizarTodos, excluir as excluirLinha, definirEstrutura,
 } from './db.js'
+import {
+  buscarEstruturaRemota, criarRemoto, atualizarRemoto, excluirRemoto,
+} from './remoto.js'
 import { gerarTextoRelatorio } from './constantes.js'
 import Setor from './componentes/Setor.jsx'
 import RelatorioModal from './componentes/RelatorioModal.jsx'
@@ -25,8 +28,10 @@ export default function App() {
   const [carregando, setCarregando]     = useState(true)
   const [erro, setErro]                 = useState('')
 
-  // ── carregar ──────────────────────────────────────────────
-  const carregar = useCallback(() => {
+  // ── carregar (local) ──────────────────────────────────────
+  // Relê apenas o que já está salvo neste aparelho (sem rede) —
+  // usado depois de alterar status/observação, que é 100% local.
+  const carregarLocal = useCallback(() => {
     try {
       setSetores(listar('setores',   { ordenarPor: ['ordem', 'criado_em'] }))
       setGrupos(listar('grupos',     { ordenarPor: ['ordem', 'criado_em'] }))
@@ -35,21 +40,38 @@ export default function App() {
         a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' })
       )
       setEstacoes(estacoesOrdenadas)
-      setErro('')
     } catch (e) {
       setErro(`Erro ao carregar dados salvos no aparelho: ${e.message}`)
     }
-    setCarregando(false)
   }, [])
+
+  // ── carregar (remoto) ─────────────────────────────────────
+  // Sempre que o app abre — e depois de qualquer alteração
+  // estrutural — busca a lista/hierarquia de equipamentos no
+  // Supabase e mescla com o status local (que nunca vai pro banco).
+  const carregar = useCallback(async () => {
+    try {
+      const remoto = await buscarEstruturaRemota()
+      definirEstrutura('setores', remoto.setores)
+      definirEstrutura('grupos', remoto.grupos)
+      definirEstrutura('maquinas', remoto.maquinas)
+      definirEstrutura('estacoes', remoto.estacoes)
+      setErro('')
+    } catch (e) {
+      setErro(`Não foi possível buscar a lista de equipamentos no banco (${e.message}). Mostrando a última lista salva neste aparelho.`)
+    }
+    carregarLocal()
+    setCarregando(false)
+  }, [carregarLocal])
 
   useEffect(() => {
     carregar()
     // se o app estiver aberto em mais de uma aba deste mesmo aparelho,
     // mantém as abas em sincronia quando o localStorage muda
-    const aoMudarStorage = e => { if (e.key === CHAVE_DB) carregar() }
+    const aoMudarStorage = e => { if (e.key === CHAVE_DB) carregarLocal() }
     window.addEventListener('storage', aoMudarStorage)
     return () => window.removeEventListener('storage', aoMudarStorage)
-  }, [carregar])
+  }, [carregar, carregarLocal])
 
   const salvarOperador = v => { setOperador(v); localStorage.setItem('ronda-operador', v) }
 
@@ -71,11 +93,11 @@ export default function App() {
           usuario, atualizado_em: agora,
         })
       })
-      carregar()
+      carregarLocal()
     } catch (e) {
       setErro(`Erro ao salvar: ${e.message}`)
     }
-  }, [carregar])
+  }, [carregarLocal])
 
   // ── autenticação admin ────────────────────────────────────
   const clicarGerenciar = () => {
@@ -87,57 +109,57 @@ export default function App() {
     setTimeout(() => { setAdmin(false); setGerenciar(false) }, 30 * 60 * 1000)
   }
 
-  // ── estrutura ─────────────────────────────────────────────
-  const addSetor = nome => {
+  // ── estrutura (sempre enviada e buscada do banco) ─────────
+  const addSetor = async nome => {
     if (!nome.trim()) return
     try {
-      inserir('setores', { nome: nome.trim(), ordem: setores.length })
-      carregar()
+      await criarRemoto('setores', { nome: nome.trim(), ordem: setores.length })
+      await carregar()
     } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
-  const addGrupo = (setorId, nome) => {
+  const addGrupo = async (setorId, nome) => {
     if (!nome.trim()) return
     try {
-      inserir('grupos', { setor_id: setorId, nome: nome.trim(), ordem: grupos.filter(g => g.setor_id === setorId).length })
-      carregar()
+      await criarRemoto('grupos', { setor_id: setorId, nome: nome.trim(), ordem: grupos.filter(g => g.setor_id === setorId).length })
+      await carregar()
     } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
   // máquinas sempre ligadas a um grupo agora
-  const addMaquina = (grupoId, nome) => {
+  const addMaquina = async (grupoId, nome) => {
     if (!nome.trim()) return
     // descobre setor_id pelo grupo
     const grupo = grupos.find(g => g.id === grupoId)
     if (!grupo) return
     try {
-      inserir('maquinas', {
+      await criarRemoto('maquinas', {
         setor_id: grupo.setor_id,
         grupo_id: grupoId,
         nome: nome.trim(),
         ordem: maquinas.filter(m => m.grupo_id === grupoId).length,
       })
-      carregar()
+      await carregar()
     } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
-  const addEstacao = (maquinaId, nome) => {
+  const addEstacao = async (maquinaId, nome) => {
     if (!nome.trim()) return
     try {
-      inserir('estacoes', { maquina_id: maquinaId, nome: nome.trim() })
-      carregar()
+      await criarRemoto('estacoes', { maquina_id: maquinaId, nome: nome.trim() })
+      await carregar()
     } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
-  const renomear = (tabela, id, nome) => {
+  const renomear = async (tabela, id, nome) => {
     try {
-      atualizar(tabela, id, { nome })
-      carregar()
+      await atualizarRemoto(tabela, id, { nome })
+      await carregar()
     } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
   // ── reordenar ─────────────────────────────────────────────
-  const reordenarLista = (tabela, lista, id, direcao) => {
+  const reordenarLista = async (tabela, lista, id, direcao) => {
     const ordenados = lista.slice().sort((a, b) =>
       (a.ordem ?? 0) - (b.ordem ?? 0) || (a.criado_em || '').localeCompare(b.criado_em || '')
     )
@@ -147,8 +169,8 @@ export default function App() {
     const trocado = ordenados.slice()
     ;[trocado[idx], trocado[novoIdx]] = [trocado[novoIdx], trocado[idx]]
     try {
-      trocado.forEach((item, i) => atualizar(tabela, item.id, { ordem: i }))
-      carregar()
+      await Promise.all(trocado.map((item, i) => atualizarRemoto(tabela, item.id, { ordem: i })))
+      await carregar()
     } catch (e) { setErro(`Erro ao reordenar: ${e.message}`) }
   }
 
@@ -168,10 +190,10 @@ export default function App() {
     reordenarLista('maquinas', irmas, maquinaId, direcao)
   }
 
-  const excluir = (tabela, id) => {
+  const excluir = async (tabela, id) => {
     try {
-      excluirLinha(tabela, id)
-      carregar()
+      await excluirRemoto(tabela, id)
+      await carregar()
     } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
@@ -204,7 +226,7 @@ export default function App() {
       const limpo = { status: null, obs: '', usuario: '', atualizado_em: null }
       atualizarTodos('maquinas', limpo)
       atualizarTodos('estacoes', limpo)
-      carregar()
+      carregarLocal()
     } catch (e) {
       setErro(`Erro ao salvar histórico: ${e.message}`)
       return

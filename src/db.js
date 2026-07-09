@@ -1,7 +1,10 @@
 // ── armazenamento local ─────────────────────────────────────
-// Substitui o Supabase: tudo fica salvo no localStorage do
-// próprio aparelho, sem precisar de servidor/banco de dados.
-// Cada aba/dispositivo tem sua própria cópia dos dados.
+// A lista/hierarquia de equipamentos (setores, grupos, máquinas,
+// estações) agora vive no Supabase — veja remoto.js — e é buscada
+// sempre que o app carrega. Este arquivo guarda, no localStorage
+// do próprio aparelho, uma cópia dessa estrutura (cache para uso
+// offline) MESCLADA com o que é sempre local: status, observação,
+// usuário e o histórico de rondas encerradas.
 
 export const CHAVE_DB = 'ronda-db-v1'
 
@@ -102,6 +105,25 @@ export function excluir(tabela, id) {
 export function excluirTodos(tabela) {
   const dados = lerTudo()
   dados[tabela] = []
+  gravarTudo(dados)
+}
+
+// ── mesclar estrutura vinda do banco ──────────────────────────
+// Recebe as linhas de estrutura (nome, ordem, relações) buscadas
+// no Supabase e substitui a tabela local por elas — preservando,
+// linha a linha, os campos que só existem/mudam localmente
+// (status, obs, usuario, atualizado_em), quando o item já existia.
+const CAMPOS_STATUS = ['status', 'obs', 'usuario', 'atualizado_em']
+
+export function definirEstrutura(tabela, linhasRemotas) {
+  const dados = lerTudo()
+  const antigasPorId = Object.fromEntries((dados[tabela] || []).map(l => [l.id, l]))
+  dados[tabela] = (linhasRemotas || []).map(remota => {
+    const antiga = antigasPorId[remota.id]
+    const statusPreservado = {}
+    if (antiga) CAMPOS_STATUS.forEach(c => { if (antiga[c] !== undefined) statusPreservado[c] = antiga[c] })
+    return { ...statusPreservado, ...remota }
+  })
   gravarTudo(dados)
 }
 
