@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from './supabase.js'
+import {
+  CHAVE_DB, listar, inserir, inserirVarios, atualizar,
+  atualizarTodos, excluir as excluirLinha,
+} from './db.js'
 import { gerarTextoRelatorio } from './constantes.js'
 import Setor from './componentes/Setor.jsx'
 import RelatorioModal from './componentes/RelatorioModal.jsx'
@@ -23,65 +26,56 @@ export default function App() {
   const [erro, setErro]                 = useState('')
 
   // ── carregar ──────────────────────────────────────────────
-  const carregar = useCallback(async () => {
-    const [s, g, m, e] = await Promise.all([
-      supabase.from('setores').select('*').order('ordem').order('criado_em'),
-      supabase.from('grupos').select('*').order('ordem').order('criado_em'),
-      supabase.from('maquinas').select('*').order('ordem').order('criado_em'),
-      supabase.from('estacoes').select('*').order('nome', { nullsFirst: false }).then(r => {
-        if (r.data) r.data.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' }))
-        return r
-      }),
-    ])
-    const erros = [s.error, g.error, m.error, e.error].filter(Boolean)
-    if (erros.length) {
-      setErro(`Erro ao carregar: ${erros[0].message}`)
-    } else {
-      setSetores(s.data)
-      setGrupos(g.data)
-      setMaquinas(m.data)
-      setEstacoes(e.data)
+  const carregar = useCallback(() => {
+    try {
+      setSetores(listar('setores',   { ordenarPor: ['ordem', 'criado_em'] }))
+      setGrupos(listar('grupos',     { ordenarPor: ['ordem', 'criado_em'] }))
+      setMaquinas(listar('maquinas', { ordenarPor: ['ordem', 'criado_em'] }))
+      const estacoesOrdenadas = listar('estacoes').sort((a, b) =>
+        a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true, sensitivity: 'base' })
+      )
+      setEstacoes(estacoesOrdenadas)
       setErro('')
+    } catch (e) {
+      setErro(`Erro ao carregar dados salvos no aparelho: ${e.message}`)
     }
     setCarregando(false)
   }, [])
 
   useEffect(() => {
     carregar()
-    const canal = supabase.channel('ronda-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'setores'  }, carregar)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'grupos'   }, carregar)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'maquinas' }, carregar)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'estacoes' }, carregar)
-      .subscribe()
-    return () => supabase.removeChannel(canal)
+    // se o app estiver aberto em mais de uma aba deste mesmo aparelho,
+    // mantém as abas em sincronia quando o localStorage muda
+    const aoMudarStorage = e => { if (e.key === CHAVE_DB) carregar() }
+    window.addEventListener('storage', aoMudarStorage)
+    return () => window.removeEventListener('storage', aoMudarStorage)
   }, [carregar])
 
   const salvarOperador = v => { setOperador(v); localStorage.setItem('ronda-operador', v) }
 
   // ── salvar lote ───────────────────────────────────────────
-  const salvarLote = useCallback(async (maquinaId, draftMaq, draftEst, op) => {
+  const salvarLote = useCallback((maquinaId, draftMaq, draftEst, op) => {
     const usuario = op || '—'
     const agora   = new Date().toISOString()
     const temObs  = status => status === 'pendencia' || status === 'parada'
-    const promessas = [
-      supabase.from('maquinas').update({
+    try {
+      atualizar('maquinas', maquinaId, {
         status: draftMaq.status,
         obs: temObs(draftMaq.status) ? (draftMaq.obs || '') : '',
         usuario, atualizado_em: agora,
-      }).eq('id', maquinaId),
-      ...Object.entries(draftEst).map(([estId, d]) =>
-        supabase.from('estacoes').update({
+      })
+      Object.entries(draftEst).forEach(([estId, d]) => {
+        atualizar('estacoes', estId, {
           status: d.status,
           obs: temObs(d.status) ? (d.obs || '') : '',
           usuario, atualizado_em: agora,
-        }).eq('id', estId)
-      ),
-    ]
-    const resultados = await Promise.all(promessas)
-    const erroEnc = resultados.find(r => r.error)
-    if (erroEnc) setErro(`Erro ao salvar: ${erroEnc.error.message}`)
-  }, [])
+        })
+      })
+      carregar()
+    } catch (e) {
+      setErro(`Erro ao salvar: ${e.message}`)
+    }
+  }, [carregar])
 
   // ── autenticação admin ────────────────────────────────────
   const clicarGerenciar = () => {
@@ -94,50 +88,56 @@ export default function App() {
   }
 
   // ── estrutura ─────────────────────────────────────────────
-  const addSetor = async nome => {
+  const addSetor = nome => {
     if (!nome.trim()) return
-    const { error } = await supabase.from('setores')
-      .insert({ nome: nome.trim(), ordem: setores.length })
-    if (error) setErro(`Erro: ${error.message}`)
+    try {
+      inserir('setores', { nome: nome.trim(), ordem: setores.length })
+      carregar()
+    } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
-  const addGrupo = async (setorId, nome) => {
+  const addGrupo = (setorId, nome) => {
     if (!nome.trim()) return
-    const { error } = await supabase.from('grupos')
-      .insert({ setor_id: setorId, nome: nome.trim(), ordem: grupos.filter(g => g.setor_id === setorId).length })
-    if (error) setErro(`Erro: ${error.message}`)
+    try {
+      inserir('grupos', { setor_id: setorId, nome: nome.trim(), ordem: grupos.filter(g => g.setor_id === setorId).length })
+      carregar()
+    } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
   // máquinas sempre ligadas a um grupo agora
-  const addMaquina = async (grupoId, nome) => {
+  const addMaquina = (grupoId, nome) => {
     if (!nome.trim()) return
     // descobre setor_id pelo grupo
     const grupo = grupos.find(g => g.id === grupoId)
     if (!grupo) return
-    const { error } = await supabase.from('maquinas').insert({
-      setor_id: grupo.setor_id,
-      grupo_id: grupoId,
-      nome: nome.trim(),
-      ordem: maquinas.filter(m => m.grupo_id === grupoId).length,
-    })
-    if (error) setErro(`Erro: ${error.message}`)
+    try {
+      inserir('maquinas', {
+        setor_id: grupo.setor_id,
+        grupo_id: grupoId,
+        nome: nome.trim(),
+        ordem: maquinas.filter(m => m.grupo_id === grupoId).length,
+      })
+      carregar()
+    } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
-  const addEstacao = async (maquinaId, nome) => {
+  const addEstacao = (maquinaId, nome) => {
     if (!nome.trim()) return
-    const { error } = await supabase.from('estacoes').insert({
-      maquina_id: maquinaId, nome: nome.trim(),
-    })
-    if (error) setErro(`Erro: ${error.message}`)
+    try {
+      inserir('estacoes', { maquina_id: maquinaId, nome: nome.trim() })
+      carregar()
+    } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
-  const renomear = async (tabela, id, nome) => {
-    const { error } = await supabase.from(tabela).update({ nome }).eq('id', id)
-    if (error) setErro(`Erro: ${error.message}`)
+  const renomear = (tabela, id, nome) => {
+    try {
+      atualizar(tabela, id, { nome })
+      carregar()
+    } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
   // ── reordenar ─────────────────────────────────────────────
-  const reordenarLista = async (tabela, lista, id, direcao) => {
+  const reordenarLista = (tabela, lista, id, direcao) => {
     const ordenados = lista.slice().sort((a, b) =>
       (a.ordem ?? 0) - (b.ordem ?? 0) || (a.criado_em || '').localeCompare(b.criado_em || '')
     )
@@ -146,11 +146,10 @@ export default function App() {
     if (idx === -1 || novoIdx < 0 || novoIdx >= ordenados.length) return
     const trocado = ordenados.slice()
     ;[trocado[idx], trocado[novoIdx]] = [trocado[novoIdx], trocado[idx]]
-    const resultados = await Promise.all(
-      trocado.map((item, i) => supabase.from(tabela).update({ ordem: i }).eq('id', item.id))
-    )
-    const erroEnc = resultados.find(r => r.error)
-    if (erroEnc) setErro(`Erro ao reordenar: ${erroEnc.error.message}`)
+    try {
+      trocado.forEach((item, i) => atualizar(tabela, item.id, { ordem: i }))
+      carregar()
+    } catch (e) { setErro(`Erro ao reordenar: ${e.message}`) }
   }
 
   const moverGrupo = (grupoId, direcao) => {
@@ -169,42 +168,47 @@ export default function App() {
     reordenarLista('maquinas', irmas, maquinaId, direcao)
   }
 
-  const excluir = async (tabela, id) => {
-    const { error } = await supabase.from(tabela).delete().eq('id', id)
-    if (error) setErro(`Erro: ${error.message}`)
+  const excluir = (tabela, id) => {
+    try {
+      excluirLinha(tabela, id)
+      carregar()
+    } catch (e) { setErro(`Erro: ${e.message}`) }
   }
 
   // ── encerrar ronda ────────────────────────────────────────
-  const novaRonda = async () => {
-    if (!window.confirm('Encerrar ronda atual e iniciar nova? O histórico será salvo.')) return
+  const novaRonda = () => {
+    if (!window.confirm('Encerrar ronda atual e iniciar nova? O histórico será salvo neste aparelho.')) return
     const agora = new Date()
     const tot = { produzindo: 0, parada: 0, pendencia: 0, semCheck: 0 }
     ;[...maquinas, ...estacoes].forEach(i => i.status ? tot[i.status]++ : tot.semCheck++)
     const texto = gerarTextoRelatorio({ setores, grupos, maquinas, estacoes, operador, agora })
 
-    const { data: ronda, error: erRonda } = await supabase
-      .from('historico_rondas')
-      .insert({ iniciada_por: operador || '—', encerrada_em: agora.toISOString(), texto_whatsapp: texto, resumo: tot })
-      .select().single()
+    try {
+      const ronda = inserir('historico_rondas', {
+        iniciada_por: operador || '—', iniciada_em: agora.toISOString(), encerrada_em: agora.toISOString(), texto_whatsapp: texto, resumo: tot,
+      })
 
-    if (erRonda) { setErro(`Erro ao salvar histórico: ${erRonda.message}`); return }
+      const itens = [
+        ...maquinas.map(m => {
+          const grupo = grupos.find(g => g.id === m.grupo_id)
+          const setor = setores.find(s => s.id === m.setor_id)
+          return { ronda_id: ronda.id, tipo: 'maquina', item_id: m.id, nome_item: m.nome, nome_pai: grupo ? `${setor?.nome} › ${grupo.nome}` : (setor?.nome || ''), status: m.status, obs: m.obs, usuario: m.usuario, atualizado_em: m.atualizado_em }
+        }),
+        ...estacoes.map(e => {
+          const maq = maquinas.find(m => m.id === e.maquina_id)
+          return { ronda_id: ronda.id, tipo: 'estacao', item_id: e.id, nome_item: e.nome, nome_pai: maq?.nome || '', status: e.status, obs: e.obs, usuario: e.usuario, atualizado_em: e.atualizado_em }
+        }),
+      ]
+      if (itens.length > 0) inserirVarios('historico_itens', itens)
 
-    const itens = [
-      ...maquinas.map(m => {
-        const grupo = grupos.find(g => g.id === m.grupo_id)
-        const setor = setores.find(s => s.id === m.setor_id)
-        return { ronda_id: ronda.id, tipo: 'maquina', item_id: m.id, nome_item: m.nome, nome_pai: grupo ? `${setor?.nome} › ${grupo.nome}` : (setor?.nome || ''), status: m.status, obs: m.obs, usuario: m.usuario, atualizado_em: m.atualizado_em }
-      }),
-      ...estacoes.map(e => {
-        const maq = maquinas.find(m => m.id === e.maquina_id)
-        return { ronda_id: ronda.id, tipo: 'estacao', item_id: e.id, nome_item: e.nome, nome_pai: maq?.nome || '', status: e.status, obs: e.obs, usuario: e.usuario, atualizado_em: e.atualizado_em }
-      }),
-    ]
-    if (itens.length > 0) await supabase.from('historico_itens').insert(itens)
-
-    const limpo = { status: null, obs: '', usuario: '', atualizado_em: null }
-    await supabase.from('maquinas').update(limpo).not('id', 'is', null)
-    await supabase.from('estacoes').update(limpo).not('id', 'is', null)
+      const limpo = { status: null, obs: '', usuario: '', atualizado_em: null }
+      atualizarTodos('maquinas', limpo)
+      atualizarTodos('estacoes', limpo)
+      carregar()
+    } catch (e) {
+      setErro(`Erro ao salvar histórico: ${e.message}`)
+      return
+    }
     setVerRelatorio(false)
   }
 
@@ -224,7 +228,7 @@ export default function App() {
           </span>
           <div>
             <h1>Ronda de Produção</h1>
-            <div className="sub">{feitas}/{total} verificações · tempo real</div>
+            <div className="sub">{feitas}/{total} verificações · salvo neste aparelho</div>
           </div>
         </div>
         <div className="topo-acoes">

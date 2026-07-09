@@ -1,20 +1,38 @@
 # Ronda de Produção 🏭
 
-Checklist compartilhado em tempo real para rondas de chão de fábrica.
+Checklist de rondas de chão de fábrica, 100% local: tudo é salvo no
+armazenamento do próprio aparelho (`localStorage`), sem precisar de banco
+de dados ou servidor.
 
-Arquitetura e stack no mesmo padrão do projeto **FCA** (otamiran/FCA):
-**Vite + React 18 + Supabase**, deploy na **Vercel**.
+Stack: **Vite + React 18**, deploy estático (Vercel ou qualquer host de arquivos).
 
 ## Funcionalidades
 
 - **Setores → Máquinas → Estações de trabalho** (estações são um subconjunto opcional de cada máquina)
 - Três status por item: **Produzindo** ✅ / **Parada** 🟡 / **Pendência** 🔴
-- Ao marcar **pendência**, abre campo de **observação** de manutenção
-- **Compartilhado em tempo real**: todos os usuários veem as marcações instantaneamente (Supabase Realtime)
-- Registra **quem marcou e o horário** de cada checagem
+- Clicar de novo no status ativo desmarca o item
+- Ao marcar **pendência** ou **parada**, abre campo de **observação** de manutenção
+- **Salvamento automático** no aparelho a cada alteração (sem precisar clicar em "Salvar")
+- Registra **quem marcou e o horário** de cada checagem (campo opcional)
 - Modo **⚙ Gerenciar** para criar/excluir setores, máquinas e estações
 - **Relatório formatado para WhatsApp** ao final da ronda, com botão de copiar e link direto `wa.me`
-- **Nova ronda** limpa todas as marcações mantendo a estrutura
+- **Nova ronda** limpa todas as marcações mantendo a estrutura, e guarda um histórico local
+- **Histórico de rondas** consultável a qualquer momento, salvo no mesmo aparelho
+
+## Onde os dados ficam salvos
+
+Tudo fica em uma única chave do `localStorage` do navegador
+(`ronda-db-v1`), definida em `src/db.js`. Isso significa:
+
+- **Não há sincronização entre aparelhos/navegadores.** Cada dispositivo
+  (ou cada navegador) tem sua própria cópia dos dados.
+- Se o usuário limpar os dados de navegação/cache do navegador para este
+  site, o conteúdo salvo é apagado.
+- Se o app for aberto em duas abas do **mesmo** navegador/aparelho, as
+  abas se mantêm sincronizadas automaticamente.
+
+`src/db.js` também expõe `exportarJson()` e `importarJson()`, úteis caso
+queira implementar um botão de backup/restauração manual no futuro.
 
 ## Estrutura do projeto
 
@@ -23,55 +41,48 @@ ronda/
 ├── index.html
 ├── package.json
 ├── vite.config.js
-├── vercel.json            # rewrite SPA (padrão FCA)
-├── supabase.sql           # schema do banco — rodar no Supabase
-├── .env.exemplo           # modelo das variáveis de ambiente
+├── vercel.json            # rewrite SPA
 └── src/
-    ├── principal.jsx      # ponto de entrada (convenção do FCA)
-    ├── App.jsx            # estado global, realtime, relatório
-    ├── supabase.js        # cliente Supabase
+    ├── principal.jsx      # ponto de entrada
+    ├── App.jsx            # estado global, relatório
+    ├── db.js               # armazenamento local (localStorage), substitui o backend
     ├── constantes.js      # definição dos status
     ├── estilos.css
     └── componentes/
         ├── Setor.jsx
+        ├── Grupo.jsx
         ├── Maquina.jsx
         ├── Estacao.jsx
         ├── BotoesStatus.jsx
         ├── CaixaObs.jsx
         ├── Andon.jsx
         ├── AdicionarInline.jsx
-        └── RelatorioModal.jsx
+        ├── RelatorioModal.jsx
+        └── HistoricoModal.jsx
 ```
 
 ## Como rodar
 
-### 1. Configurar o Supabase
-
-1. Crie um projeto gratuito em [supabase.com](https://supabase.com)
-2. Abra **SQL Editor** e execute todo o conteúdo de `supabase.sql`
-3. Em **Project Settings → API**, copie a **URL** e a **anon key**
-
-### 2. Rodar localmente
-
 ```bash
 npm install
-cp .env.exemplo .env   # e preencha com URL e anon key
 npm run dev
 ```
 
-### 3. Deploy na Vercel
+Não é necessário configurar nenhuma variável de ambiente, chave de API
+ou banco de dados — o app funciona assim que instalado.
 
-1. Suba o projeto para um repositório no GitHub
-2. Importe o repositório na [Vercel](https://vercel.com)
-3. Em **Environment Variables**, adicione:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Deploy — o `vercel.json` já cuida do roteamento da SPA
+### Deploy (opcional)
 
-Compartilhe o link com a equipe: todos preenchem a mesma ronda em tempo real.
+Por ser um app estático, pode ser hospedado em qualquer serviço de
+arquivos (Vercel, Netlify, GitHub Pages, ou até aberto localmente via
+`npm run build` + `npm run preview`). Lembre-se de que, como os dados
+ficam no aparelho de cada pessoa, cada usuário verá apenas o que foi
+preenchido no próprio navegador.
 
 ## Observação sobre segurança
 
-O `supabase.sql` libera leitura/escrita pela chave anon (app interno de equipe).
-Se o link puder vazar para fora da equipe, considere adicionar autenticação
-(Supabase Auth) e restringir as políticas de RLS.
+Como não há mais backend, não existe mais chave de API para proteger.
+A senha de acesso ao modo **⚙ Gerenciar** continua definida em
+`src/componentes/LoginAdmin.jsx` (ou pela variável `VITE_ADMIN_SENHA`),
+apenas para evitar edições acidentais na estrutura — não é uma proteção
+de segurança forte, já que roda inteiramente no navegador.

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '../supabase.js'
+import { listar, excluir as excluirLinha, excluirTodos, buscar } from '../db.js'
 import { STATUS, gerarTextoRelatorio } from '../constantes.js'
 
 export default function HistoricoModal({ aoFechar }) {
@@ -165,41 +165,48 @@ export default function HistoricoModal({ aoFechar }) {
   }
 
   // ── buscar rondas ─────────────────────────────────────────
-  const buscarRondas = async () => {
-    const { data, error } = await supabase
-      .from('historico_rondas').select('*')
-      .order('iniciada_em', { ascending: false }).limit(100)
-    if (!error) setRondas(data || [])
+  const buscarRondas = () => {
+    try {
+      const todas = listar('historico_rondas', { ordenarPor: [] })
+        .slice()
+        .sort((a, b) => (b.iniciada_em || '').localeCompare(a.iniciada_em || ''))
+        .slice(0, 100)
+      setRondas(todas)
+    } catch {
+      setRondas([])
+    }
     setCarregando(false)
   }
   useEffect(() => { buscarRondas() }, [])
 
-  const abrirRonda = async ronda => {
+  const abrirRonda = ronda => {
     setSelecionada(ronda)
     setSetoresSel(null); setGruposSel(null)
     setFiltro('todos'); setCopiado(false)
-    const { data } = await supabase
-      .from('historico_itens').select('*')
-      .eq('ronda_id', ronda.id).order('tipo').order('nome_pai')
-    setItens(data || [])
+    const itensDaRonda = buscar('historico_itens', i => i.ronda_id === ronda.id)
+      .slice()
+      .sort((a, b) => a.tipo.localeCompare(b.tipo) || (a.nome_pai || '').localeCompare(b.nome_pai || ''))
+    setItens(itensDaRonda)
   }
 
   const voltar = () => { setSelecionada(null); setItens([]); setSetoresSel(null); setGruposSel(null) }
 
   // ── exclusão ──────────────────────────────────────────────
-  const excluirRonda = async (id, e) => {
+  const excluirRonda = (id, e) => {
     e.stopPropagation()
     if (!window.confirm('Excluir esta ronda do histórico?')) return
     setExcluindo(id)
-    await supabase.from('historico_rondas').delete().eq('id', id)
+    excluirLinha('historico_rondas', id)
+    buscar('historico_itens', i => i.ronda_id === id).forEach(i => excluirLinha('historico_itens', i.id))
     setRondas(prev => prev.filter(r => r.id !== id))
     if (selecionada?.id === id) voltar()
     setExcluindo(null)
   }
 
-  const limparTudo = async () => {
+  const limparTudo = () => {
     setCarregando(true); setConfirmLimpar(false)
-    await supabase.from('historico_rondas').delete().not('id', 'is', null)
+    excluirTodos('historico_rondas')
+    excluirTodos('historico_itens')
     setRondas([]); voltar(); setCarregando(false)
   }
 

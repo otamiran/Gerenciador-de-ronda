@@ -17,7 +17,7 @@ self.addEventListener('activate', e => {
 })
 
 self.addEventListener('fetch', e => {
-  // só cacheia navegação (HTML) — requests de API/Supabase sempre vão à rede
+  // só cacheia navegação (HTML) — demais recursos sempre vão à rede primeiro
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).catch(() => caches.match('/index.html'))

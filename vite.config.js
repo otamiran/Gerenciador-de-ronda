@@ -13,7 +13,6 @@ export default defineConfig({
         // Divide o bundle para carregamento mais rápido em mobile
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          supabase: ['@supabase/supabase-js'],
         },
       },
     },
