@@ -120,3 +120,40 @@ export function gerarTextoRelatorio({
 
   return linhas.join('\n')
 }
+
+// ── texto do relatório de manutenção (máquinas atendidas agora) ─
+// Recebe apenas as máquinas já filtradas (selecionadas no modal) e a
+// lista completa de atendimentos ativos, e monta o texto para WhatsApp.
+export function gerarTextoManutencao({ maquinas, atendimentos, setores, grupos, agora }) {
+  const linhas = []
+  linhas.push('*MANUTENÇÃO EM ANDAMENTO* 🔧')
+  // ⏰ aqui é a hora de envio/geração deste relatório — não a hora em que
+  // cada atendimento começou (isso não entra no texto, só no painel).
+  linhas.push(`📅 ${agora.toLocaleDateString('pt-BR')} ⏰ ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`)
+  linhas.push('')
+
+  if (maquinas.length === 0) {
+    linhas.push('✅ Nenhuma máquina em atendimento no momento.')
+    return linhas.join('\n')
+  }
+
+  for (const maq of maquinas) {
+    const grupo = grupos.find(g => g.id === maq.grupo_id)
+    const setor = setores.find(s => s.id === maq.setor_id)
+    const local = grupo ? `${setor?.nome ?? ''} › ${grupo.nome}` : (setor?.nome || '')
+
+    linhas.push(`🔧 *${maq.nome}*${local ? ` — ${local}` : ''}`)
+    atendimentos
+      .filter(a => a.maquina_id === maq.id)
+      .forEach(a => {
+        const estacaoTxt = a.estacao_nome ? ` — Estação: ${a.estacao_nome}` : ''
+        linhas.push(`   • ${a.manutentor_nome}${estacaoTxt}`)
+        if (a.descricao) linhas.push(`      ↳ ${a.descricao}`)
+      })
+    linhas.push('')
+  }
+
+  while (linhas.length && linhas[linhas.length - 1] === '') linhas.pop()
+
+  return linhas.join('\n')
+}

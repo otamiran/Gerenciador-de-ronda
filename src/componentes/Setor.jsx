@@ -1,23 +1,18 @@
 import { useState } from 'react'
-import Grupo from './Grupo.jsx'
-import Maquina, { calcularCompletude } from './Maquina.jsx'
-import AdicionarInline from './AdicionarInline.jsx'
+import { calcularCompletude } from './Maquina.jsx'
 
+// Cartão-resumo do setor, na lista principal. Ao clicar, abre o painel em
+// árvore (PainelHierarquia) já focado neste setor — a navegação entre
+// grupos, máquinas e estações acontece toda dentro do painel.
 export default function Setor({
-  setor, grupos, maquinas, estacoes, gerenciar, operador, bloqueado,
-  aoSalvarLote, aoAddGrupo, aoAddMaquina, aoAddEstacao, aoExcluir, aoRenomear,
-  aoMoverGrupo, aoMoverMaquina,
+  setor, maquinas, estacoes, gerenciar, aoAbrir, aoExcluir, aoRenomear,
 }) {
-  const [recolhido, setRecolhido]       = useState(true)
   const [editandoNome, setEditandoNome] = useState(false)
   const [novoNome, setNovoNome]         = useState(setor.nome)
 
-  const meusGrupos       = grupos.filter(g => g.setor_id === setor.id)
-  const maquinasSemGrupo = maquinas.filter(m => !m.grupo_id)
-  const todasMaquinas    = maquinas
-  const completas        = todasMaquinas.filter(m => calcularCompletude(m, estacoes).completo).length
-  const total            = todasMaquinas.length
-  const setorCompleto    = total > 0 && completas === total
+  const completas     = maquinas.filter(m => calcularCompletude(m, estacoes).completo).length
+  const total         = maquinas.length
+  const setorCompleto = total > 0 && completas === total
 
   const salvarNome = () => {
     if (novoNome.trim() && novoNome.trim() !== setor.nome) aoRenomear('setores', setor.id, novoNome.trim())
@@ -26,9 +21,8 @@ export default function Setor({
 
   return (
     <section className={`setor ${setorCompleto ? 'setor-completo' : ''}`}>
-
-      <div className="cabecalho-setor" onClick={() => !editandoNome && setRecolhido(!recolhido)}>
-        <span className="seta">{recolhido ? '▸' : '▾'}</span>
+      <div className="cabecalho-setor" onClick={() => !editandoNome && aoAbrir(setor.id)}>
+        <span className="seta">›</span>
 
         {editandoNome ? (
           <input
@@ -52,7 +46,7 @@ export default function Setor({
         <div className="setor-progresso">
           <span className={`setor-contagem ${setorCompleto ? 'setor-contagem-ok' : ''}`}>{completas}/{total}</span>
           <div className="mini-barra">
-            <div className="mini-barra-fill" style={{ width: total ? `${(completas/total)*100}%` : 0, background: setorCompleto ? 'var(--verde)' : 'var(--azul-brilho)' }} />
+            <div className="mini-barra-fill" style={{ width: total ? `${(completas / total) * 100}%` : 0, background: setorCompleto ? 'var(--verde)' : 'var(--azul-brilho)' }} />
           </div>
         </div>
 
@@ -60,59 +54,6 @@ export default function Setor({
           <button className="excluir" onClick={e => { e.stopPropagation(); if (window.confirm(`Excluir o setor "${setor.nome}" e todos os seus grupos e máquinas?`)) aoExcluir('setores', setor.id) }}>✕</button>
         )}
       </div>
-
-      {!recolhido && (
-        <div className="corpo-setor">
-          {gerenciar && <AdicionarInline rotulo="+ grupo de máquinas" aoAdicionar={n => aoAddGrupo(setor.id, n)} />}
-
-          {meusGrupos.map((grupo, grupoIdx) => (
-            <Grupo
-              key={grupo.id}
-              grupo={grupo}
-              maquinas={maquinas.filter(m => m.grupo_id === grupo.id)}
-              estacoes={estacoes}
-              gerenciar={gerenciar}
-              operador={operador}
-              bloqueado={bloqueado}
-              aoSalvarLote={aoSalvarLote}
-              aoAddMaquina={aoAddMaquina}
-              aoAddEstacao={aoAddEstacao}
-              aoExcluir={aoExcluir}
-              aoRenomear={aoRenomear}
-              aoMoverMaquina={aoMoverMaquina}
-              aoMover={dir => aoMoverGrupo(grupo.id, dir)}
-              primeiro={grupoIdx === 0}
-              ultimo={grupoIdx === meusGrupos.length - 1}
-            />
-          ))}
-
-          {maquinasSemGrupo.length > 0 && (
-            <div className="maquinas-sem-grupo">
-              {maquinasSemGrupo.map((maq, maqIdx) => (
-                <Maquina
-                  key={maq.id}
-                  maquina={maq}
-                  estacoes={estacoes}
-                  gerenciar={gerenciar}
-                  operador={operador}
-                  bloqueado={bloqueado}
-                  aoSalvarLote={aoSalvarLote}
-                  aoAddEstacao={aoAddEstacao}
-                  aoExcluir={aoExcluir}
-                  aoRenomear={aoRenomear}
-                  aoMover={dir => aoMoverMaquina(maq.id, dir)}
-                  primeiro={maqIdx === 0}
-                  ultimo={maqIdx === maquinasSemGrupo.length - 1}
-                />
-              ))}
-            </div>
-          )}
-
-          {meusGrupos.length === 0 && maquinasSemGrupo.length === 0 && !gerenciar && (
-            <div className="setor-vazio">Nenhum grupo ou máquina. Ative ⚙ Gerenciar para adicionar.</div>
-          )}
-        </div>
-      )}
     </section>
   )
 }

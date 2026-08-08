@@ -6,10 +6,16 @@ import {
 import {
   buscarEstruturaRemota, criarRemoto, atualizarRemoto, excluirRemoto,
 } from './remoto.js'
+import {
+  listarManutentores, criarManutentor, excluirManutentor,
+  listarAtendimentosAtivos, iniciarAtendimento, encerrarAtendimento,
+} from './manutencao.js'
 import { gerarTextoRelatorio } from './constantes.js'
 import Setor from './componentes/Setor.jsx'
+import PainelHierarquia from './componentes/PainelHierarquia.jsx'
 import RelatorioModal from './componentes/RelatorioModal.jsx'
 import HistoricoModal from './componentes/HistoricoModal.jsx'
+import ManutencaoPainel from './componentes/ManutencaoPainel.jsx'
 import AdicionarInline from './componentes/AdicionarInline.jsx'
 import LoginAdmin from './componentes/LoginAdmin.jsx'
 import logo from './assets/logo.png'
@@ -20,11 +26,15 @@ export default function App() {
   const [maquinas, setMaquinas] = useState([])
   const [estacoes, setEstacoes] = useState([])
   const [operador, setOperador] = useState(() => localStorage.getItem('ronda-operador') || '')
+  const [setorAberto, setSetorAberto]   = useState(null)
   const [gerenciar, setGerenciar]       = useState(false)
   const [adminAutenticado, setAdmin]    = useState(false)
   const [mostrarLogin, setMostrarLogin] = useState(false)
   const [verRelatorio, setVerRelatorio] = useState(false)
   const [verHistorico, setVerHistorico] = useState(false)
+  const [verManutencao, setVerManutencao] = useState(false)
+  const [manutentores, setManutentores] = useState([])
+  const [atendimentos, setAtendimentos] = useState([])
   const [carregando, setCarregando]     = useState(true)
   const [erro, setErro]                 = useState('')
 
@@ -64,14 +74,49 @@ export default function App() {
     setCarregando(false)
   }, [carregarLocal])
 
+  // ── manutenção (manutentores + atendimentos, compartilhados) ─
+  const carregarManutencao = useCallback(async () => {
+    try {
+      const [mans, atds] = await Promise.all([listarManutentores(), listarAtendimentosAtivos()])
+      setManutentores(mans)
+      setAtendimentos(atds)
+    } catch (e) {
+      setErro(`Não foi possível carregar os dados de manutenção (${e.message}).`)
+    }
+  }, [])
+
   useEffect(() => {
     carregar()
+    carregarManutencao()
     // se o app estiver aberto em mais de uma aba deste mesmo aparelho,
     // mantém as abas em sincronia quando o localStorage muda
     const aoMudarStorage = e => { if (e.key === CHAVE_DB) carregarLocal() }
     window.addEventListener('storage', aoMudarStorage)
     return () => window.removeEventListener('storage', aoMudarStorage)
-  }, [carregar, carregarLocal])
+  }, [carregar, carregarLocal, carregarManutencao])
+
+  const addManutentor = async nome => {
+    await criarManutentor(nome)
+    await carregarManutencao()
+  }
+
+  const removerManutentor = async id => {
+    await excluirManutentor(id)
+    await carregarManutencao()
+  }
+
+  const iniciarAtendimentoMaquina = async (maquinaId, manutentorId, estacaoId, descricao) => {
+    const manutentor = manutentores.find(m => m.id === manutentorId)
+    if (!manutentor) throw new Error('Manutentor não encontrado.')
+    const estacao = estacaoId ? estacoes.find(e => e.id === estacaoId) : null
+    await iniciarAtendimento(maquinaId, manutentorId, manutentor.nome, estacaoId || null, estacao?.nome || null, descricao || null)
+    await carregarManutencao()
+  }
+
+  const encerrarAtendimentoMaquina = async id => {
+    await encerrarAtendimento(id)
+    await carregarManutencao()
+  }
 
   const salvarOperador = v => { setOperador(v); localStorage.setItem('ronda-operador', v) }
 
@@ -261,6 +306,9 @@ export default function App() {
             placeholder="Seu nome (opcional)"
           />
           <button className="fantasma" onClick={() => setVerHistorico(true)}>📋 Histórico</button>
+          <button className={`fantasma ${verManutencao ? 'ativo' : ''}`} onClick={() => setVerManutencao(true)}>
+            🔧 Manutenção{atendimentos.length > 0 ? ` (${atendimentos.length})` : ''}
+          </button>
           <button className={`fantasma ${gerenciar ? 'ativo' : ''}`} onClick={clicarGerenciar}>
             {gerenciar ? '🔓 Sair edição' : '⚙ Gerenciar'}
           </button>
@@ -285,20 +333,12 @@ export default function App() {
           <Setor
             key={setor.id}
             setor={setor}
-            grupos={grupos}
             maquinas={maquinas.filter(m => m.setor_id === setor.id)}
             estacoes={estacoes}
             gerenciar={gerenciar}
-            operador={operador}
-            bloqueado={false}
-            aoSalvarLote={salvarLote}
-            aoAddGrupo={addGrupo}
-            aoAddMaquina={addMaquina}
-            aoAddEstacao={addEstacao}
+            aoAbrir={setSetorAberto}
             aoExcluir={excluir}
             aoRenomear={renomear}
-            aoMoverGrupo={moverGrupo}
-            aoMoverMaquina={moverMaquina}
           />
         ))}
 
@@ -315,6 +355,29 @@ export default function App() {
         <button className="primario" onClick={gerarRelatorio}>📲 WhatsApp</button>
       </footer>
 
+      {setorAberto && (
+        <PainelHierarquia
+          setores={setores}
+          grupos={grupos}
+          maquinas={maquinas}
+          estacoes={estacoes}
+          gerenciar={gerenciar}
+          operador={operador}
+          bloqueado={false}
+          setorInicialId={setorAberto}
+          aoFechar={() => setSetorAberto(null)}
+          aoSalvarLote={salvarLote}
+          aoAddSetor={addSetor}
+          aoAddGrupo={addGrupo}
+          aoAddMaquina={addMaquina}
+          aoAddEstacao={addEstacao}
+          aoExcluir={excluir}
+          aoRenomear={renomear}
+          aoMoverGrupo={moverGrupo}
+          aoMoverMaquina={moverMaquina}
+        />
+      )}
+
       {mostrarLogin && <LoginAdmin aoAutenticar={onAutenticar} aoFechar={() => setMostrarLogin(false)} />}
       {verRelatorio && (
         <RelatorioModal
@@ -323,10 +386,26 @@ export default function App() {
           maquinas={maquinas}
           estacoes={estacoes}
           operador={operador}
+          atendimentos={atendimentos}
           aoFechar={() => setVerRelatorio(false)}
         />
       )}
       {verHistorico && <HistoricoModal aoFechar={() => setVerHistorico(false)} />}
+      {verManutencao && (
+        <ManutencaoPainel
+          setores={setores}
+          grupos={grupos}
+          maquinas={maquinas}
+          estacoes={estacoes}
+          manutentores={manutentores}
+          atendimentos={atendimentos}
+          aoAdicionarManutentor={addManutentor}
+          aoExcluirManutentor={removerManutentor}
+          aoIniciarAtendimento={iniciarAtendimentoMaquina}
+          aoEncerrarAtendimento={encerrarAtendimentoMaquina}
+          aoFechar={() => setVerManutencao(false)}
+        />
+      )}
     </div>
   )
 }

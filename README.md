@@ -26,12 +26,16 @@ Stack: **Vite + React 18** + **Supabase** (só para a estrutura), deploy estáti
 - **Relatório formatado para WhatsApp** ao final da ronda, com botão de copiar e link direto `wa.me`
 - **Nova ronda** limpa todas as marcações mantendo a estrutura, e guarda um histórico local
 - **Histórico de rondas** consultável a qualquer momento, salvo no mesmo aparelho
+- Cada **máquina** agora abre suas estações em um **painel lateral** (em vez de expandir para baixo na lista), facilitando a visualização de listas longas
+- **Painel de Manutenção** (🔧): cadastro de manutentores e atribuição deles a equipamentos que estão sendo atendidos agora — dado compartilhado entre aparelhos (Supabase)
+- **Relatório de manutenção**: aba própria no relatório para WhatsApp, listando apenas as máquinas com manutentor atribuído no momento
 
 ## Onde os dados ficam salvos
 
 | Dado | Onde | Compartilhado entre aparelhos? |
 |---|---|---|
 | Setores, grupos, máquinas, estações (nomes, ordem, relações) | Supabase | ✅ Sim |
+| Manutentores cadastrados e atendimentos de manutenção em andamento | Supabase | ✅ Sim |
 | Status, observação, quem marcou | `localStorage` (`ronda-db-v1`) | ❌ Não |
 | Histórico de rondas encerradas | `localStorage` (`ronda-db-v1`) | ❌ Não |
 
@@ -62,24 +66,29 @@ ronda/
 ├── vite.config.js
 ├── vercel.json            # rewrite SPA
 ├── .env                   # credenciais do Supabase (URL + chave anônima)
+├── supabase/
+│   └── schema.sql         # script SQL completo e idempotente (todas as tabelas + policies)
 └── src/
     ├── principal.jsx      # ponto de entrada
     ├── App.jsx            # estado global, ações de estrutura e status
     ├── supabase.js         # cliente Supabase
-    ├── remoto.js           # único módulo que fala com o Supabase (só estrutura)
+    ├── remoto.js           # módulo que fala com o Supabase (estrutura de equipamentos)
+    ├── manutencao.js       # módulo que fala com o Supabase (manutentores + atendimentos)
     ├── db.js               # armazenamento local (status, obs, histórico) + cache da estrutura
-    ├── constantes.js       # definição dos status e texto do WhatsApp
+    ├── constantes.js       # definição dos status e texto do WhatsApp / manutenção
     ├── estilos.css
     └── componentes/
         ├── Setor.jsx
-        ├── Grupo.jsx
+        ├── PainelHierarquia.jsx
+        ├── LinhaColuna.jsx
         ├── Maquina.jsx
-        ├── Estacao.jsx
         ├── BotoesStatus.jsx
         ├── CaixaObs.jsx
         ├── Andon.jsx
         ├── AdicionarInline.jsx
+        ├── AdicionarEstacoes.jsx
         ├── RelatorioModal.jsx
+        ├── ManutencaoPainel.jsx
         └── HistoricoModal.jsx
 ```
 
@@ -104,8 +113,28 @@ nunca lê nem grava status/observação/usuário no banco):
 - `maquinas` (`id`, `setor_id`, `grupo_id`, `nome`, `ordem`, `criado_em`)
 - `estacoes` (`id`, `maquina_id`, `nome`, `criado_em`)
 
+O painel de Manutenção (🔧) usa mais duas tabelas próprias, lidas/gravadas
+por `src/manutencao.js`:
+
+- `manutentores` (`id`, `nome`, `criado_em`)
+- `atendimentos_manutencao` (`id`, `maquina_id`, `estacao_id`, `estacao_nome`,
+  `manutentor_id`, `manutentor_nome`, `descricao`, `iniciado_em`, `finalizado_em`, `criado_em`)
+
 Se as tabelas tiverem colunas extras (como um antigo `status`), elas
 simplesmente não são tocadas pelo app.
+
+#### Criando (ou atualizando) tudo de uma vez
+
+O arquivo [`supabase/schema.sql`](./supabase/schema.sql) cria as 6 tabelas
+acima, os índices e as policies de acesso público (leitura/escrita para a
+chave anônima) de uma vez só. Basta colar o conteúdo dele no **SQL
+Editor** do Supabase e rodar.
+
+Ele é **idempotente**: pode ser rodado de novo em um projeto que já tem
+as tabelas (todo `create table`/`create index` usa `if not exists`, e as
+`policies` são recriadas com `drop policy if exists` antes do `create`),
+então não dá erro de "já existe" nem apaga dados — é seguro rodar
+sempre que este arquivo for atualizado.
 
 ### Deploy (opcional)
 

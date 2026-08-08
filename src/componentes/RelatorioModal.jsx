@@ -1,11 +1,38 @@
-import { useState, useMemo } from 'react'
-import { gerarTextoRelatorio } from '../constantes.js'
+import { useState, useMemo, useEffect } from 'react'
+import { gerarTextoRelatorio, gerarTextoManutencao } from '../constantes.js'
 
-export default function RelatorioModal({ setores, grupos, maquinas, estacoes, operador, aoFechar }) {
+export default function RelatorioModal({ setores, grupos, maquinas, estacoes, operador, atendimentos = [], aoFechar }) {
+  const [aba,        setAba]        = useState('ronda') // 'ronda' | 'manutencao'
   const [setoresSel, setSetoresSel] = useState(() => new Set())
   const [gruposSel,  setGruposSel]  = useState(() => new Set())
   const [filtro,     setFiltro]     = useState('todos') // 'todos' | 'criticos'
   const [copiado,    setCopiado]    = useState(false)
+
+  // ── aba de manutenção: máquinas atendidas agora ───────────
+  const maquinasComManutencao = useMemo(
+    () => maquinas.filter(m => atendimentos.some(a => a.maquina_id === m.id)),
+    [maquinas, atendimentos]
+  )
+  const [maquinasManutSel, setMaquinasManutSel] = useState(() => new Set())
+
+  // ao abrir/atualizar a lista, seleciona por padrão todas as máquinas em manutenção
+  useEffect(() => {
+    setMaquinasManutSel(new Set(maquinasComManutencao.map(m => m.id)))
+  }, [maquinasComManutencao])
+
+  const toggleMaquinaManut = id => {
+    setMaquinasManutSel(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleTodasMaquinasManut = () => {
+    setMaquinasManutSel(prev =>
+      prev.size === maquinasComManutencao.length ? new Set() : new Set(maquinasComManutencao.map(m => m.id))
+    )
+  }
 
   // ── toggle setor ─────────────────────────────────────────
   const toggleSetor = id => {
@@ -62,7 +89,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
   }
 
   // ── texto gerado ─────────────────────────────────────────
-  const texto = useMemo(() => {
+  const textoRonda = useMemo(() => {
     const setoresFiltrados  = setores.filter(s => setoresSel.has(s.id))
     const gruposFiltrados   = grupos.filter(g => gruposSel.has(g.id))
     const maquinasFiltradas = maquinas.filter(m =>
@@ -80,6 +107,15 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
     })
   }, [setoresSel, gruposSel, filtro, setores, grupos, maquinas, estacoes, operador])
 
+  const textoManutencao = useMemo(() => {
+    const maquinasSelecionadas = maquinasComManutencao.filter(m => maquinasManutSel.has(m.id))
+    return gerarTextoManutencao({
+      maquinas: maquinasSelecionadas, atendimentos, setores, grupos, agora: new Date(),
+    })
+  }, [maquinasComManutencao, maquinasManutSel, atendimentos, setores, grupos])
+
+  const texto = aba === 'manutencao' ? textoManutencao : textoRonda
+
   const copiar = async () => {
     try { await navigator.clipboard.writeText(texto) }
     catch {
@@ -90,7 +126,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
     setCopiado(true); setTimeout(() => setCopiado(false), 2000)
   }
 
-  const nenhumSelecionado = texto.length === 0
+  const nenhumSelecionado = aba === 'manutencao' ? false : texto.length === 0
 
   return (
     <div className="fundo-modal" onClick={aoFechar}>
@@ -102,81 +138,131 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
           <button className="fechar-modal" onClick={aoFechar}>✕</button>
         </div>
 
-        {/* filtro de conteúdo */}
-        <div className="rel-filtro-barra">
-          <span className="rel-filtro-label">Conteúdo:</span>
-          <button
-            className={`chip-filtro ${filtro === 'todos' ? 'ativo' : ''}`}
-            onClick={() => setFiltro('todos')}
-          >
-            📋 Completo
+        {/* abas: ronda x manutenção */}
+        <div className="rel-abas">
+          <button className={`rel-aba ${aba === 'ronda' ? 'ativa' : ''}`} onClick={() => setAba('ronda')}>
+            📋 Ronda
           </button>
-          <button
-            className={`chip-filtro chip-filtro-critico ${filtro === 'criticos' ? 'ativo' : ''}`}
-            onClick={() => setFiltro('criticos')}
-          >
-            ⚠️ Só pendências e paradas
+          <button className={`rel-aba ${aba === 'manutencao' ? 'ativa' : ''}`} onClick={() => setAba('manutencao')}>
+            🔧 Manutenção{maquinasComManutencao.length > 0 ? ` (${maquinasComManutencao.length})` : ''}
           </button>
         </div>
 
-        {/* seleção de setores + grupos */}
-        <div className="rel-selecao">
-          <div className="rel-nivel-titulo">
-            <span>Setores</span>
-            <button className="link-btn-sm" onClick={toggleTodosSetores}>
-              {setoresSel.size === setores.length ? 'Desmarcar todos' : 'Selecionar todos'}
-            </button>
-          </div>
-          <div className="rel-chips-linha">
-            {setores.map(s => {
-              const ativo = setoresSel.has(s.id)
-              const maqDoSetor = maquinas.filter(m => m.setor_id === s.id)
-              const concluidas = maqDoSetor.filter(m => m.status).length
-              return (
-                <button key={s.id} className={`chip-setor-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleSetor(s.id)}>
-                  <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
-                  {s.nome}
-                  <span className="chip-setor-count">{concluidas}/{maqDoSetor.length}</span>
+        {aba === 'ronda' && (
+          <>
+            {/* filtro de conteúdo */}
+            <div className="rel-filtro-barra">
+              <span className="rel-filtro-label">Conteúdo:</span>
+              <button
+                className={`chip-filtro ${filtro === 'todos' ? 'ativo' : ''}`}
+                onClick={() => setFiltro('todos')}
+              >
+                📋 Completo
+              </button>
+              <button
+                className={`chip-filtro chip-filtro-critico ${filtro === 'criticos' ? 'ativo' : ''}`}
+                onClick={() => setFiltro('criticos')}
+              >
+                ⚠️ Só pendências e paradas
+              </button>
+            </div>
+
+            {/* seleção de setores + grupos */}
+            <div className="rel-selecao">
+              <div className="rel-nivel-titulo">
+                <span>Setores</span>
+                <button className="link-btn-sm" onClick={toggleTodosSetores}>
+                  {setoresSel.size === setores.length ? 'Desmarcar todos' : 'Selecionar todos'}
                 </button>
-              )
-            })}
-          </div>
-
-          {setores.filter(s => setoresSel.has(s.id)).map(s => {
-            const gruposDoSetor = grupos.filter(g => g.setor_id === s.id)
-            if (gruposDoSetor.length === 0) return null
-            const todosAtivos = gruposDoSetor.every(g => gruposSel.has(g.id))
-            return (
-              <div key={s.id} className="rel-grupos-bloco">
-                <div className="rel-nivel-titulo rel-nivel-sub">
-                  <span className="rel-setor-label">↳ {s.nome}</span>
-                  <button className="link-btn-sm" onClick={() => toggleTodosGruposDoSetor(s.id)}>
-                    {todosAtivos ? 'Desmarcar grupos' : 'Selecionar grupos'}
-                  </button>
-                </div>
-                <div className="rel-chips-linha">
-                  {gruposDoSetor.map(g => {
-                    const ativo = gruposSel.has(g.id)
-                    const maqDoGrupo = maquinas.filter(m => m.grupo_id === g.id)
-                    const concluidas = maqDoGrupo.filter(m => m.status).length
-                    return (
-                      <button key={g.id} className={`chip-grupo-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleGrupo(g.id, s.id)}>
-                        <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
-                        📦 {g.nome}
-                        <span className="chip-setor-count">{concluidas}/{maqDoGrupo.length}</span>
-                      </button>
-                    )
-                  })}
-                </div>
               </div>
-            )
-          })}
-        </div>
+              <div className="rel-chips-linha">
+                {setores.map(s => {
+                  const ativo = setoresSel.has(s.id)
+                  const maqDoSetor = maquinas.filter(m => m.setor_id === s.id)
+                  const concluidas = maqDoSetor.filter(m => m.status).length
+                  return (
+                    <button key={s.id} className={`chip-setor-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleSetor(s.id)}>
+                      <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
+                      {s.nome}
+                      <span className="chip-setor-count">{concluidas}/{maqDoSetor.length}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {setores.filter(s => setoresSel.has(s.id)).map(s => {
+                const gruposDoSetor = grupos.filter(g => g.setor_id === s.id)
+                if (gruposDoSetor.length === 0) return null
+                const todosAtivos = gruposDoSetor.every(g => gruposSel.has(g.id))
+                return (
+                  <div key={s.id} className="rel-grupos-bloco">
+                    <div className="rel-nivel-titulo rel-nivel-sub">
+                      <span className="rel-setor-label">↳ {s.nome}</span>
+                      <button className="link-btn-sm" onClick={() => toggleTodosGruposDoSetor(s.id)}>
+                        {todosAtivos ? 'Desmarcar grupos' : 'Selecionar grupos'}
+                      </button>
+                    </div>
+                    <div className="rel-chips-linha">
+                      {gruposDoSetor.map(g => {
+                        const ativo = gruposSel.has(g.id)
+                        const maqDoGrupo = maquinas.filter(m => m.grupo_id === g.id)
+                        const concluidas = maqDoGrupo.filter(m => m.status).length
+                        return (
+                          <button key={g.id} className={`chip-grupo-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleGrupo(g.id, s.id)}>
+                            <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
+                            📦 {g.nome}
+                            <span className="chip-setor-count">{concluidas}/{maqDoGrupo.length}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+
+        {aba === 'manutencao' && (
+          <div className="rel-selecao">
+            <div className="rel-nivel-titulo">
+              <span>Máquinas com manutentor atribuído</span>
+              {maquinasComManutencao.length > 0 && (
+                <button className="link-btn-sm" onClick={toggleTodasMaquinasManut}>
+                  {maquinasManutSel.size === maquinasComManutencao.length ? 'Desmarcar todas' : 'Selecionar todas'}
+                </button>
+              )}
+            </div>
+            {maquinasComManutencao.length === 0 ? (
+              <div className="rel-vazio-manut">
+                Nenhuma máquina com manutentor atribuído no momento.{' '}
+                Use o botão 🔧 Manutenção no topo para atribuir.
+              </div>
+            ) : (
+              <div className="rel-chips-linha">
+                {maquinasComManutencao.map(m => {
+                  const ativo = maquinasManutSel.has(m.id)
+                  const detalheAtendimentos = atendimentos
+                    .filter(a => a.maquina_id === m.id)
+                    .map(a => a.estacao_nome ? `${a.manutentor_nome} (${a.estacao_nome})` : a.manutentor_nome)
+                    .join(', ')
+                  return (
+                    <button key={m.id} className={`chip-setor-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleMaquinaManut(m.id)}>
+                      <span className={`chip-check ${ativo ? 'visivel' : ''}`}>✓</span>
+                      🔧 {m.nome}
+                      <span className="chip-setor-count">{detalheAtendimentos}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* preview */}
         {nenhumSelecionado
           ? <div className="rel-vazio">Selecione pelo menos um setor ou grupo.</div>
-          : <textarea className="rel-preview" readOnly value={texto} rows={10} />
+          : <textarea className="rel-preview" readOnly value={texto} rows={aba === 'manutencao' ? 8 : 10} />
         }
 
         {/* ações */}

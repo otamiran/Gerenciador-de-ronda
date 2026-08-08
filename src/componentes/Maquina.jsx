@@ -44,12 +44,17 @@ export default function Maquina({
   maquina, estacoes, gerenciar, bloqueado,
   aoSalvarLote, aoAddEstacao, aoExcluir, aoRenomear, operador,
   aoMover, primeiro, ultimo,
+  // comoColuna: usado dentro do PainelHierarquia (última coluna da árvore).
+  // Nesse modo a máquina não abre o próprio painel lateral — o detalhe
+  // (estações, obs, status) já é exibido direto como conteúdo da coluna.
+  comoColuna = false,
 }) {
   const minhasEstacoes = estacoes.filter(e => e.maquina_id === maquina.id)
-  const [draft, setDraft]         = useState(() => buildRascunho(maquina, minhasEstacoes))
-  const [salvando, setSalvando]   = useState(false)
-  const [salvoOk, setSalvoOk]     = useState(false)
-  const [recolhido, setRecolhido] = useState(true)
+  const [draft, setDraft]           = useState(() => buildRascunho(maquina, minhasEstacoes))
+  const [salvando, setSalvando]     = useState(false)
+  const [salvoOk, setSalvoOk]       = useState(false)
+  // painel lateral (em vez de expandir pra baixo) mostra as estações da máquina
+  const [painelAberto, setPainelAberto] = useState(false)
   const [editandoNome, setEditing]= useState(false)
   const [novoNome, setNovoNome]   = useState(maquina.nome)
   const [obsAberta, setObsAberta] = useState(() => {
@@ -128,10 +133,10 @@ export default function Maquina({
     setObsAberta(o => ({ ...o, maquina: status === 'pendencia' || status === 'parada' }))
     if (status === 'produzindo') {
       setObsAberta(o => ({ ...o, maquina: false }))
-      if (temEstacoes) setRecolhido(false) // expande para mostrar estações paradas
+      if (temEstacoes) setPainelAberto(true) // abre painel lateral para mostrar estações paradas
     }
     if ((status === 'parada' || status === 'pendencia') && temEstacoes) {
-      setRecolhido(false)
+      setPainelAberto(true)
     }
   }
 
@@ -183,15 +188,80 @@ export default function Maquina({
     draftEstObj.every(e => e.status === 'produzindo') &&
     draftMaqStatus === 'produzindo'
 
+  const corpoEstacoes = (
+    <>
+      {todasProduzindo && (
+        <div className="faixa-todas-ok">
+          ✅ Todas as {minhasEstacoes.length} estações produzindo
+        </div>
+      )}
+
+      {draftEstObj.length === 0 && !gerenciar && (
+        <div className="painel-lateral-vazio">Esta máquina não tem estações cadastradas.</div>
+      )}
+
+      {draftEstObj.map(est => {
+        const estaOk = est.status === 'produzindo'
+        return (
+          <div key={est.id} className={`estacao ${estaOk ? 'estacao-ok' : ''}`}>
+            <div className="linha-estacao">
+              {/* Ponto colorido clicável para ciclar status */}
+              <span
+                className="ponto-estacao"
+                style={{
+                  background: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)',
+                  cursor: bloqueado || gerenciar ? 'default' : 'pointer',
+                  transition: 'transform .12s',
+                }}
+                onClick={e => ciclarEstacao(est.id, est.status, e)}
+                title={bloqueado || gerenciar ? undefined : `Clique para alternar: ${est.nome}`}
+              />
+              <span className="nome-estacao">
+                {gerenciar ? (
+                  <RenomearEstacao est={est} aoRenomear={aoRenomear} aoExcluir={aoExcluir} />
+                ) : (
+                  // Nome da estação também clicável
+                  <span
+                    onClick={e => ciclarEstacao(est.id, est.status, e)}
+                    style={{ cursor: bloqueado ? 'default' : 'pointer' }}
+                    title={bloqueado ? undefined : `Clique para alternar: ${est.nome}`}
+                    className={!bloqueado ? 'nome-estacao-clicavel' : ''}
+                  >
+                    {est.nome}
+                  </span>
+                )}
+              </span>
+              <BotoesStatus compacto status={est.status} aoMarcar={s => marcarEstacao(est.id, s)} bloqueado={bloqueado} />
+            </div>
+            {obsAberta[est.id] && (
+              <div className="caixa-obs">
+                <textarea
+                  value={draft.estacoes[est.id]?.obs || ''}
+                  onChange={e => setObs(est.id, e.target.value)}
+                  placeholder={placeholderObs(est.status)}
+                  rows={2}
+                />
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {gerenciar && (
+        <AdicionarEstacoes maquinaNome={maquina.nome} aoAdicionar={nome => aoAddEstacao(maquina.id, nome)} />
+      )}
+    </>
+  )
+
   return (
-    <div data-maquina-id={maquina.id} className={`maquina ${completo ? 'maquina-completa' : ''}`}>
+    <div data-maquina-id={maquina.id} className={`maquina ${completo ? 'maquina-completa' : ''} ${comoColuna ? 'maquina-coluna' : ''}`}>
 
       <div
         className="linha-maquina"
-        onClick={() => (temEstacoes || gerenciar) && !editandoNome && setRecolhido(r => !r)}
-        style={{ cursor: (temEstacoes || gerenciar) ? 'pointer' : 'default' }}
+        onClick={() => !comoColuna && (temEstacoes || gerenciar) && !editandoNome && setPainelAberto(true)}
+        style={{ cursor: (!comoColuna && (temEstacoes || gerenciar)) ? 'pointer' : 'default' }}
       >
-        {(temEstacoes || gerenciar) && <span className="seta-maquina">{recolhido ? '▸' : '▾'}</span>}
+        {!comoColuna && (temEstacoes || gerenciar) && <span className="seta-maquina seta-maquina-lateral">›</span>}
 
         {/* Andon clicável para ciclar status */}
         <span
@@ -270,75 +340,8 @@ export default function Maquina({
         </div>
       )}
 
-      {(temEstacoes || gerenciar) && !recolhido && (
-        <div className="estacoes">
-          {todasProduzindo && !gerenciar && (
-            <div className="faixa-todas-ok">
-              ✅ Todas as {minhasEstacoes.length} estações produzindo
-            </div>
-          )}
-
-          {draftEstObj.map(est => {
-            const estaOk = est.status === 'produzindo'
-            const mostrarCompacto = todasProduzindo && !gerenciar
-            return (
-              <div key={est.id} className={`estacao ${mostrarCompacto ? 'estacao-compacta' : ''} ${estaOk && !mostrarCompacto ? 'estacao-ok' : ''}`}>
-                <div className="linha-estacao">
-                  {/* Ponto colorido clicável para ciclar status */}
-                  <span
-                    className="ponto-estacao"
-                    style={{
-                      background: est.status ? STATUS[est.status].cor : 'var(--cinza-claro)',
-                      cursor: bloqueado || gerenciar ? 'default' : 'pointer',
-                      transition: 'transform .12s',
-                    }}
-                    onClick={e => ciclarEstacao(est.id, est.status, e)}
-                    title={bloqueado || gerenciar ? undefined : `Clique para alternar: ${est.nome}`}
-                  />
-                  <span className="nome-estacao">
-                    {gerenciar ? (
-                      <RenomearEstacao est={est} aoRenomear={aoRenomear} aoExcluir={aoExcluir} />
-                    ) : (
-                      // Nome da estação também clicável
-                      <span
-                        onClick={e => ciclarEstacao(est.id, est.status, e)}
-                        style={{ cursor: bloqueado ? 'default' : 'pointer' }}
-                        title={bloqueado ? undefined : `Clique para alternar: ${est.nome}`}
-                        className={!bloqueado ? 'nome-estacao-clicavel' : ''}
-                      >
-                        {est.nome}
-                      </span>
-                    )}
-                  </span>
-                  {mostrarCompacto ? (
-                    <span className="estacao-status-icon" onClick={e => { e.stopPropagation(); setRecolhido(false) }}>
-                      {STATUS[est.status].emoji}
-                    </span>
-                  ) : (
-                    <BotoesStatus compacto status={est.status} aoMarcar={s => marcarEstacao(est.id, s)} bloqueado={bloqueado} />
-                  )}
-                </div>
-                {obsAberta[est.id] && (
-                  <div className="caixa-obs">
-                    <textarea
-                      value={draft.estacoes[est.id]?.obs || ''}
-                      onChange={e => setObs(est.id, e.target.value)}
-                      placeholder={placeholderObs(est.status)}
-                      rows={2}
-                    />
-                  </div>
-                )}
-              </div>
-            )
-          })}
-
-          {gerenciar && (
-            <AdicionarEstacoes maquinaNome={maquina.nome} aoAdicionar={nome => aoAddEstacao(maquina.id, nome)} />
-          )}
-        </div>
-      )}
-
-      {temEstacoes && recolhido && (
+      {/* resumo compacto sempre visível — não empurra o restante da lista para baixo */}
+      {!comoColuna && temEstacoes && (
         <div className="resumo-recolhido">
           {draftEstObj.map(est => {
             const cor   = est.status ? STATUS[est.status].cor : 'var(--cinza-claro)'
@@ -374,6 +377,32 @@ export default function Maquina({
             <span className="chip-tudo-ok-label">✓ todas ok</span>
           )}
         </div>
+      )}
+
+      {/* Detalhe das estações: em modo coluna aparece direto no corpo da
+          coluna; fora dele, abre como painel lateral sobreposto */}
+      {(comoColuna || (painelAberto && (temEstacoes || gerenciar))) && (
+        comoColuna ? (
+          <div className="detalhe-estacoes-coluna">
+            {corpoEstacoes}
+          </div>
+        ) : (
+          <div className="painel-lateral-fundo nivel-3" onClick={() => setPainelAberto(false)}>
+            <div className="painel-lateral" onClick={e => e.stopPropagation()}>
+              <div className="painel-lateral-cabecalho">
+                <div className="painel-lateral-titulo">
+                  <Andon status={draftMaqStatus} />
+                  <span className="painel-lateral-nome">{maquina.nome}</span>
+                </div>
+                <button className="fechar-modal" onClick={() => setPainelAberto(false)}>✕</button>
+              </div>
+
+              <div className="painel-lateral-corpo">
+                {corpoEstacoes}
+              </div>
+            </div>
+          </div>
+        )
       )}
 
       {temPendente && (
