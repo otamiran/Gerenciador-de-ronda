@@ -44,7 +44,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-.app { min-height: 100vh; padding-bottom: 80px; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── carregando ────────────────────────────────────────── */
 .carregando {
@@ -60,7 +60,7 @@ html, body {
   padding: 13px 18px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
-  position: sticky; top: 0; z-index: 20;
+  flex-shrink: 0;
 }
 
 .marca { display: flex; align-items: center; gap: 12px; }
@@ -113,39 +113,20 @@ html, body {
 /* ── barra de progresso ────────────────────────────────── */
 .trilha-progresso {
   height: 3px; background: var(--cinza-escuro);
-  position: sticky; top: 0; z-index: 19;
+  flex-shrink: 0;
 }
 .preenchimento-progresso {
   height: 100%; background: var(--azul-brilho);
   transition: width .4s ease; box-shadow: 0 0 8px var(--azul-brilho);
 }
 
-/* ── conteúdo ──────────────────────────────────────────── */
-.conteudo { max-width: 780px; margin: 0 auto; padding: 18px 14px; }
-
-/* ── setor ─────────────────────────────────────────────── */
-.setor {
-  background: var(--preto-painel);
-  border: 1px solid var(--borda);
-  border-radius: 10px; margin-bottom: 14px; overflow: hidden;
+/* ── conteúdo (tela da árvore de navegação) ───────────────── */
+.main-arvore {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
-.cabecalho-setor {
-  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-  cursor: pointer; background: var(--azul-escuro);
-  border-bottom: 1px solid var(--borda);
-  user-select: none;
-}
-.cabecalho-setor h2 {
-  font-size: 13px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--branco-suave);
-  display: flex; align-items: center; gap: 6px;
-}
-.seta { color: var(--cinza-texto); font-size: 11px; }
-.contagem-setor {
-  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-  color: var(--cinza-texto); margin-left: auto;
-}
-.corpo-setor { padding: 10px 12px; }
+.main-arvore .erro { margin: 10px 14px 0; }
 
 /* ── máquina ───────────────────────────────────────────── */
 .maquina {
@@ -242,8 +223,6 @@ html, body {
   padding: 4px 8px; font-size: 14px; font-family: inherit;
   outline: none; width: 200px;
 }
-.input-setor { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
-
 /* ── adicionar inline ──────────────────────────────────── */
 .botao-add {
   background: transparent;
@@ -328,10 +307,9 @@ html, body {
 
 /* ── rodapé ────────────────────────────────────────────── */
 .rodape {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  flex-shrink: 0;
   background: var(--preto-medio); border-top: 1px solid var(--borda);
   padding: 11px 14px; display: flex; gap: 10px; justify-content: center;
-  z-index: 30;
 }
 .primario {
   background: var(--azul-brilho); color: #fff; border: none;
@@ -536,22 +514,6 @@ html, body {
 
 /* ── setor com progresso ────────────────────────────────── */
 
-.setor-completo { border-color: #1A3D2B !important; }
-.setor-completo .cabecalho-setor { background: #0A1F12 !important; }
-
-.setor-check {
-  color: #4ADE80; font-size: 12px; margin-right: 4px;
-}
-
-.setor-progresso {
-  margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-}
-.setor-contagem {
-  font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--cinza-texto);
-  white-space: nowrap;
-}
-.setor-contagem-ok { color: #4ADE80; }
-
 .mini-barra {
   width: 52px; height: 4px; background: var(--cinza-escuro);
   border-radius: 2px; overflow: hidden;
@@ -605,98 +567,7 @@ html, body {
   to   { opacity: 1;  transform: scaleX(1);  transform-origin: left; }
 }
 
-/* ── grupo de máquinas ──────────────────────────────────── */
-
-.grupo {
-  background: var(--preto-painel);
-  border: 1px solid var(--borda);
-  border-radius: 8px;
-  margin-bottom: 10px;
-  overflow: hidden;
-}
-
-.grupo-completo {
-  border-color: #1A3D2B !important;
-}
-
-.cabecalho-grupo {
-  display: flex; align-items: center; gap: 9px;
-  padding: 9px 13px;
-  background: var(--azul-suave);
-  border-bottom: 1px solid var(--borda);
-  cursor: pointer; user-select: none;
-  transition: background .12s;
-}
-.cabecalho-grupo:hover { background: #1F3D6E; }
-
-.grupo-completo .cabecalho-grupo {
-  background: #0A1F12;
-  border-bottom-color: #1A3D2B;
-}
-
-.seta-grupo { color: var(--cinza-texto); font-size: 10px; flex-shrink: 0; }
-
-.nome-grupo {
-  font-size: 12px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .8px; color: var(--branco-suave);
-  display: flex; align-items: center; gap: 5px; flex: 1;
-}
-
-.grupo-check { color: #4ADE80; font-size: 11px; }
-
-.grupo-progresso {
-  display: flex; align-items: center; gap: 7px; flex-shrink: 0;
-}
-.grupo-contagem {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px; color: var(--cinza-texto); white-space: nowrap;
-}
-.grupo-contagem-ok { color: #4ADE80; }
-
-.mini-barra-grupo { width: 40px; }
-
-.corpo-grupo {
-  padding: 8px 10px;
-}
-
-/* chips de resumo do grupo recolhido */
-.resumo-grupo-recolhido {
-  padding: 6px 13px 8px;
-  display: flex; flex-wrap: wrap; gap: 5px;
-  border-top: 1px solid var(--borda);
-}
-.chip-maquina-mini {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px; padding: 2px 8px; border-radius: 4px;
-  background: var(--cinza-escuro); border: 1px solid var(--borda-clara);
-  color: var(--cinza-texto);
-}
-.chip-maquina-mini.chip-ok {
-  background: #0D2318; border-color: #1A4D2A; color: #4ADE80;
-}
-
-/* botão de adicionar grupo no setor */
-.botao-add-grupo {
-  background: transparent;
-  border: 1.5px dashed var(--azul-medio);
-  color: var(--azul-brilho); border-radius: 7px;
-  padding: 7px 12px; font-size: 13px; cursor: pointer;
-  font-family: inherit; width: 100%; margin-bottom: 8px;
-  transition: all .15s;
-}
-.botao-add-grupo:hover { border-color: var(--azul-brilho); background: #0F1E38; }
-
-/* máquinas sem grupo (legado) */
-.maquinas-sem-grupo {
-  margin-top: 6px;
-  border-top: 1px dashed var(--borda);
-  padding-top: 8px;
-}
-
-.setor-vazio {
-  padding: 16px; text-align: center;
-  color: var(--cinza-texto); font-size: 13px;
-}
+/* ── botão de adicionar ──────────────────────────────────── */
 
 /* input renomear grupo */
 .input-grupo {
@@ -969,9 +840,6 @@ html, body {
    ═══════════════════════════════════════════════════════════ */
 
 /* Safe area para iPhone com notch/Dynamic Island */
-.app {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
-}
 .topo {
   padding-top: calc(13px + env(safe-area-inset-top));
   padding-left: calc(18px + env(safe-area-inset-left));
@@ -1034,8 +902,8 @@ html, body {
   padding-bottom: 1px;
 }
 
-/* Scroll suave no iOS */
-.conteudo {
+/* Scroll suave no iOS (colunas da árvore rolam internamente) */
+.colunas-scroll, .coluna-corpo {
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1068,9 +936,6 @@ input, textarea, select {
     font-size: 12px;
     padding: 7px 9px;
   }
-  .conteudo {
-    padding: 12px 10px;
-  }
   .linha-maquina {
     gap: 8px;
   }
@@ -1092,8 +957,7 @@ input, textarea, select {
 }
 
 /* Previne seleção de texto acidental ao clicar rápido */
-.cabecalho-setor,
-.cabecalho-grupo,
+.linha-coluna,
 .linha-maquina,
 .chip-estacao-clicavel,
 .nome-maquina-clicavel,
@@ -1184,32 +1048,22 @@ input, textarea, select {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   PAINEL EM ÁRVORE (CASCATA) — setor → grupo → máquina → estações
-   Continua abrindo pela lateral, mas cada nível vira uma coluna que
-   fica lado a lado com a anterior, em vez de escondê-la.
+   ÁRVORE DE NAVEGAÇÃO (CASCATA) — setor → grupo → máquina → estações
+   É a tela principal do app (não um modal): ocupa toda a área de
+   conteúdo, entre o cabeçalho e o rodapé. Cada nível vira uma coluna
+   lado a lado com a anterior, em vez de esconder o que já estava
+   selecionado — dá pra ver e trocar setor/grupo/máquina sem perder
+   o contexto.
    ═══════════════════════════════════════════════════════════ */
 
-.painel-hierarquia-fundo {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.6);
-  backdrop-filter: blur(1px);
-  z-index: 50;
-  display: flex; justify-content: flex-end;
-  animation: painel-fade-in .15s ease;
-}
-
-.painel-hierarquia {
-  width: min(1180px, 97vw);
-  height: 100%;
-  background: var(--preto-painel);
-  border-left: 1px solid var(--borda-clara);
-  box-shadow: -10px 0 28px rgba(0,0,0,.45);
+.arvore {
+  flex: 1; min-height: 0;
   display: flex; flex-direction: column;
-  animation: painel-slide-in .2s cubic-bezier(.2,.8,.3,1);
+  background: var(--preto-painel);
 }
 
-.painel-hierarquia-topo {
-  display: flex; align-items: center; justify-content: space-between;
+.arvore-topo {
+  display: flex; align-items: center;
   gap: 10px; padding: 10px 14px;
   background: var(--azul-escuro);
   border-bottom: 1px solid var(--borda);
@@ -1231,7 +1085,7 @@ input, textarea, select {
 .migalha-sep { color: var(--cinza-claro); font-size: 12px; flex-shrink: 0; }
 
 .colunas-scroll {
-  flex: 1; display: flex; flex-direction: row;
+  flex: 1; min-height: 0; display: flex; flex-direction: row;
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
@@ -1266,10 +1120,19 @@ input, textarea, select {
    direto entre setor / grupo / máquina sem precisar voltar página a
    página. */
 @media (max-width: 720px) {
-  .painel-hierarquia { width: 100vw; border-left: none; }
-  .colunas-scroll { scroll-snap-type: x mandatory; }
   .coluna { width: 100vw; }
+  .colunas-scroll { scroll-snap-type: x mandatory; }
 }
+
+/* estado vazio: nenhum setor selecionado ainda — preenche o espaço à
+   direita da coluna de setores em vez de deixar um vazio sem explicação */
+.arvore-vazio {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; padding: 40px; text-align: center;
+  color: var(--cinza-texto);
+}
+.arvore-vazio-emoji { font-size: 34px; opacity: .45; }
+.arvore-vazio-texto { font-size: 14px; }
 
 /* ── linha de coluna (item clicável dentro de cada nível) ────── */
 .linha-coluna {

@@ -11,12 +11,10 @@ import {
   listarAtendimentosAtivos, iniciarAtendimento, encerrarAtendimento,
 } from './manutencao.js'
 import { gerarTextoRelatorio } from './constantes.js'
-import Setor from './componentes/Setor.jsx'
 import PainelHierarquia from './componentes/PainelHierarquia.jsx'
 import RelatorioModal from './componentes/RelatorioModal.jsx'
 import HistoricoModal from './componentes/HistoricoModal.jsx'
 import ManutencaoPainel from './componentes/ManutencaoPainel.jsx'
-import AdicionarInline from './componentes/AdicionarInline.jsx'
 import LoginAdmin from './componentes/LoginAdmin.jsx'
 import logo from './assets/logo.png'
 
@@ -26,7 +24,6 @@ export default function App() {
   const [maquinas, setMaquinas] = useState([])
   const [estacoes, setEstacoes] = useState([])
   const [operador, setOperador] = useState(() => localStorage.getItem('ronda-operador') || '')
-  const [setorAberto, setSetorAberto]   = useState(null)
   const [gerenciar, setGerenciar]       = useState(false)
   const [adminAutenticado, setAdmin]    = useState(false)
   const [mostrarLogin, setMostrarLogin] = useState(false)
@@ -319,7 +316,7 @@ export default function App() {
         <div className="preenchimento-progresso" style={{ width: total ? `${(feitas/total)*100}%` : 0 }} />
       </div>
 
-      <main className="conteudo">
+      <main className="main-arvore">
         {erro && (
           <div className="erro">
             {erro}
@@ -327,26 +324,30 @@ export default function App() {
           </div>
         )}
 
-        {gerenciar && <AdicionarInline rotulo="+ Adicionar setor" aoAdicionar={addSetor} grande />}
-
-        {setores.map(setor => (
-          <Setor
-            key={setor.id}
-            setor={setor}
-            maquinas={maquinas.filter(m => m.setor_id === setor.id)}
-            estacoes={estacoes}
-            gerenciar={gerenciar}
-            aoAbrir={setSetorAberto}
-            aoExcluir={excluir}
-            aoRenomear={renomear}
-          />
-        ))}
-
-        {setores.length === 0 && !gerenciar && (
-          <div className="vazio">
+        {setores.length === 0 && !gerenciar ? (
+          <div className="vazio" style={{ margin: 'auto' }}>
             Nenhum setor cadastrado.{' '}
             <button className="link-btn" onClick={clicarGerenciar}>Clique em ⚙ Gerenciar</button> para começar.
           </div>
+        ) : (
+          <PainelHierarquia
+            setores={setores}
+            grupos={grupos}
+            maquinas={maquinas}
+            estacoes={estacoes}
+            gerenciar={gerenciar}
+            operador={operador}
+            bloqueado={false}
+            aoSalvarLote={salvarLote}
+            aoAddSetor={addSetor}
+            aoAddGrupo={addGrupo}
+            aoAddMaquina={addMaquina}
+            aoAddEstacao={addEstacao}
+            aoExcluir={excluir}
+            aoRenomear={renomear}
+            aoMoverGrupo={moverGrupo}
+            aoMoverMaquina={moverMaquina}
+          />
         )}
       </main>
 
@@ -354,29 +355,6 @@ export default function App() {
         <button className="secundario" onClick={novaRonda}>Encerrar ronda</button>
         <button className="primario" onClick={gerarRelatorio}>📲 WhatsApp</button>
       </footer>
-
-      {setorAberto && (
-        <PainelHierarquia
-          setores={setores}
-          grupos={grupos}
-          maquinas={maquinas}
-          estacoes={estacoes}
-          gerenciar={gerenciar}
-          operador={operador}
-          bloqueado={false}
-          setorInicialId={setorAberto}
-          aoFechar={() => setSetorAberto(null)}
-          aoSalvarLote={salvarLote}
-          aoAddSetor={addSetor}
-          aoAddGrupo={addGrupo}
-          aoAddMaquina={addMaquina}
-          aoAddEstacao={addEstacao}
-          aoExcluir={excluir}
-          aoRenomear={renomear}
-          aoMoverGrupo={moverGrupo}
-          aoMoverMaquina={moverMaquina}
-        />
-      )}
 
       {mostrarLogin && <LoginAdmin aoAutenticar={onAutenticar} aoFechar={() => setMostrarLogin(false)} />}
       {verRelatorio && (

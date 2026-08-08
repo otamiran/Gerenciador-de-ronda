@@ -27,6 +27,7 @@ Stack: **Vite + React 18** + **Supabase** (só para a estrutura), deploy estáti
 - **Nova ronda** limpa todas as marcações mantendo a estrutura, e guarda um histórico local
 - **Histórico de rondas** consultável a qualquer momento, salvo no mesmo aparelho
 - Cada **máquina** agora abre suas estações em um **painel lateral** (em vez de expandir para baixo na lista), facilitando a visualização de listas longas
+- **Navegação em árvore (cascata)**: setor → grupo → máquina → estações vira colunas lado a lado (estilo Finder), é a própria tela principal do app, e as migalhas de pão no topo permitem pular direto entre níveis sem perder o contexto
 - **Painel de Manutenção** (🔧): cadastro de manutentores e atribuição deles a equipamentos que estão sendo atendidos agora — dado compartilhado entre aparelhos (Supabase)
 - **Relatório de manutenção**: aba própria no relatório para WhatsApp, listando apenas as máquinas com manutentor atribuído no momento
 
@@ -78,7 +79,6 @@ ronda/
     ├── constantes.js       # definição dos status e texto do WhatsApp / manutenção
     ├── estilos.css
     └── componentes/
-        ├── Setor.jsx
         ├── PainelHierarquia.jsx
         ├── LinhaColuna.jsx
         ├── Maquina.jsx
