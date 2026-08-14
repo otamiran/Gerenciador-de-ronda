@@ -8,7 +8,8 @@ import {
 } from './remoto.js'
 import {
   listarManutentores, criarManutentor, excluirManutentor,
-  listarAtendimentosAtivos, iniciarAtendimento, encerrarAtendimento,
+  listarAtendimentosAtivos, criarPendencia, atribuirManutentor,
+  iniciarAtendimento, encerrarAtendimento,
 } from './manutencao.js'
 import { gerarTextoRelatorio } from './constantes.js'
 import PainelHierarquia from './componentes/PainelHierarquia.jsx'
@@ -107,6 +108,23 @@ export default function App() {
     if (!manutentor) throw new Error('Manutentor não encontrado.')
     const estacao = estacaoId ? estacoes.find(e => e.id === estacaoId) : null
     await iniciarAtendimento(maquinaId, manutentorId, manutentor.nome, estacaoId || null, estacao?.nome || null, descricao || null)
+    await carregarManutencao()
+  }
+
+  // Registra uma pendência (máquina + problema relatado), ainda sem
+  // manutentor — fica esperando alguém assumir na lista de pendências.
+  const registrarPendenciaMaquina = async (maquinaId, estacaoId, descricao) => {
+    const estacao = estacaoId ? estacoes.find(e => e.id === estacaoId) : null
+    await criarPendencia(maquinaId, estacaoId || null, estacao?.nome || null, descricao || null)
+    await carregarManutencao()
+  }
+
+  // Atribui um manutentor a uma pendência já registrada, passando-a para
+  // "em andamento".
+  const atribuirManutentorAtendimento = async (atendimentoId, manutentorId) => {
+    const manutentor = manutentores.find(m => m.id === manutentorId)
+    if (!manutentor) throw new Error('Manutentor não encontrado.')
+    await atribuirManutentor(atendimentoId, manutentorId, manutentor.nome)
     await carregarManutencao()
   }
 
@@ -380,6 +398,8 @@ export default function App() {
           aoAdicionarManutentor={addManutentor}
           aoExcluirManutentor={removerManutentor}
           aoIniciarAtendimento={iniciarAtendimentoMaquina}
+          aoRegistrarPendencia={registrarPendenciaMaquina}
+          aoAtribuirManutentor={atribuirManutentorAtendimento}
           aoEncerrarAtendimento={encerrarAtendimentoMaquina}
           aoFechar={() => setVerManutencao(false)}
         />

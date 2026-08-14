@@ -1243,6 +1243,9 @@ input, textarea, select {
   gap: 10px; background: var(--cinza-escuro); border: 1px solid var(--borda-clara);
   border-radius: 8px; padding: 10px 12px;
 }
+.manut-item-pendente {
+  border-left: 3px solid #CA8A04;
+}
 .manut-item-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .manut-item-maquina { font-size: 14px; font-weight: 600; color: var(--branco); }
 .manut-item-caminho {
@@ -1254,11 +1257,25 @@ input, textarea, select {
   font-size: 12px; color: var(--branco-suave);
   margin-top: 2px; line-height: 1.4;
 }
+.manut-item-acoes {
+  display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+}
 .manut-btn-encerrar {
   flex-shrink: 0; padding: 7px 12px !important; font-size: 12px !important;
   color: #4ADE80 !important; border-color: #1A4D2A !important;
 }
 .manut-btn-encerrar:hover { background: var(--verde-bg); }
+.manut-btn-atribuir {
+  flex-shrink: 0; padding: 7px 12px !important; font-size: 12px !important;
+  white-space: nowrap;
+}
+.manut-atribuir-inline {
+  display: flex; gap: 6px; align-items: center; margin-top: 6px;
+}
+.manut-atribuir-inline .manut-select { min-width: 140px; padding: 7px 8px; font-size: 13px; }
+.manut-atribuir-inline button {
+  flex-shrink: 0; padding: 7px 10px !important; font-size: 13px !important;
+}
 
 /* ── abas do relatório (ronda / manutenção) ─────────────────── */
 .rel-abas {
@@ -1286,4 +1303,8 @@ input, textarea, select {
   .manut-form-atribuir { flex-direction: column; }
   .manut-select { width: 100%; }
   .manut-item-atendimento { flex-direction: column; align-items: flex-start; }
+  .manut-item-acoes { flex-direction: row; width: 100%; }
+  .manut-item-acoes button { flex: 1; }
+  .manut-atribuir-inline { flex-wrap: wrap; width: 100%; }
+  .manut-atribuir-inline .manut-select { width: 100%; }
 }

@@ -74,10 +74,10 @@ create table if not exists atendimentos_manutencao (
   estacao_id       uuid references estacoes(id) on delete set null,
   estacao_nome     text,
   manutentor_id    uuid references manutentores(id) on delete set null,
-  manutentor_nome  text not null,
-  descricao        text, -- o que está sendo atendido no momento (opcional)
-  iniciado_em      timestamptz not null default now(),
-  finalizado_em    timestamptz, -- nulo enquanto o atendimento está ativo
+  manutentor_nome  text, -- nulo enquanto pendente (nenhum manutentor atribuído ainda)
+  descricao        text, -- problema relatado / o que está sendo atendido no momento
+  iniciado_em      timestamptz, -- nulo enquanto pendente; preenchido quando um manutentor é atribuído
+  finalizado_em    timestamptz, -- nulo enquanto o atendimento está ativo (pendente ou em andamento)
   criado_em        timestamptz not null default now()
 );
 
@@ -87,9 +87,18 @@ alter table atendimentos_manutencao
   add column if not exists estacao_nome text,
   add column if not exists descricao    text;
 
+-- caso a tabela já existisse com manutentor_nome/iniciado_em obrigatórios
+-- (versão anterior, sem suporte a pendências sem manutentor atribuído):
+-- soltar essas restrições é seguro rodar de novo, mesmo se já estiverem
+-- soltas — o Postgres não reclama.
+alter table atendimentos_manutencao alter column manutentor_nome drop not null;
+alter table atendimentos_manutencao alter column iniciado_em     drop not null;
+alter table atendimentos_manutencao alter column iniciado_em     drop default;
+
 create index if not exists idx_atend_maquina_id    on atendimentos_manutencao(maquina_id);
 create index if not exists idx_atend_manutentor_id on atendimentos_manutencao(manutentor_id);
 create index if not exists idx_atend_ativos         on atendimentos_manutencao(finalizado_em) where finalizado_em is null;
+create index if not exists idx_atend_pendentes      on atendimentos_manutencao(manutentor_id) where finalizado_em is null and manutentor_id is null;
 
 -- ============================================================
 -- 3) SEGURANÇA (RLS)

@@ -226,7 +226,7 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
         {aba === 'manutencao' && (
           <div className="rel-selecao">
             <div className="rel-nivel-titulo">
-              <span>Máquinas com manutentor atribuído</span>
+              <span>Máquinas em manutenção (em andamento ou pendente)</span>
               {maquinasComManutencao.length > 0 && (
                 <button className="link-btn-sm" onClick={toggleTodasMaquinasManut}>
                   {maquinasManutSel.size === maquinasComManutencao.length ? 'Desmarcar todas' : 'Selecionar todas'}
@@ -235,8 +235,8 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
             </div>
             {maquinasComManutencao.length === 0 ? (
               <div className="rel-vazio-manut">
-                Nenhuma máquina com manutentor atribuído no momento.{' '}
-                Use o botão 🔧 Manutenção no topo para atribuir.
+                Nenhum atendimento em andamento ou pendente no momento.{' '}
+                Use o botão 🔧 Manutenção no topo para registrar um.
               </div>
             ) : (
               <div className="rel-chips-linha">
@@ -244,7 +244,10 @@ export default function RelatorioModal({ setores, grupos, maquinas, estacoes, op
                   const ativo = maquinasManutSel.has(m.id)
                   const detalheAtendimentos = atendimentos
                     .filter(a => a.maquina_id === m.id)
-                    .map(a => a.estacao_nome ? `${a.manutentor_nome} (${a.estacao_nome})` : a.manutentor_nome)
+                    .map(a => {
+                      if (!a.manutentor_id) return '🕓 pendente'
+                      return a.estacao_nome ? `${a.manutentor_nome} (${a.estacao_nome})` : a.manutentor_nome
+                    })
                     .join(', ')
                   return (
                     <button key={m.id} className={`chip-setor-sel ${ativo ? 'ativo' : ''}`} onClick={() => toggleMaquinaManut(m.id)}>

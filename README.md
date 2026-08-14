@@ -28,8 +28,8 @@ Stack: **Vite + React 18** + **Supabase** (só para a estrutura), deploy estáti
 - **Histórico de rondas** consultável a qualquer momento, salvo no mesmo aparelho
 - Cada **máquina** agora abre suas estações em um **painel lateral** (em vez de expandir para baixo na lista), facilitando a visualização de listas longas
 - **Navegação em árvore (cascata)**: setor → grupo → máquina → estações vira colunas lado a lado (estilo Finder), é a própria tela principal do app, e as migalhas de pão no topo permitem pular direto entre níveis sem perder o contexto
-- **Painel de Manutenção** (🔧): cadastro de manutentores e atribuição deles a equipamentos que estão sendo atendidos agora — dado compartilhado entre aparelhos (Supabase)
-- **Relatório de manutenção**: aba própria no relatório para WhatsApp, listando apenas as máquinas com manutentor atribuído no momento
+- **Painel de Manutenção** (🔧): cadastro de manutentores, registro de **pendências** (máquina + problema relatado, sem manutentor ainda) e atribuição posterior de um manutentor — dado compartilhado entre aparelhos (Supabase)
+- **Relatório de manutenção**: aba própria no relatório para WhatsApp, com seções separadas para atendimentos *em andamento* e *pendentes*
 
 ## Onde os dados ficam salvos
 
@@ -118,7 +118,9 @@ por `src/manutencao.js`:
 
 - `manutentores` (`id`, `nome`, `criado_em`)
 - `atendimentos_manutencao` (`id`, `maquina_id`, `estacao_id`, `estacao_nome`,
-  `manutentor_id`, `manutentor_nome`, `descricao`, `iniciado_em`, `finalizado_em`, `criado_em`)
+  `manutentor_id`, `manutentor_nome`, `descricao`, `iniciado_em`, `finalizado_em`, `criado_em`) —
+  `manutentor_id`/`manutentor_nome`/`iniciado_em` ficam `null` enquanto o
+  atendimento está **pendente** (sem manutentor atribuído ainda)
 
 Se as tabelas tiverem colunas extras (como um antigo `status`), elas
 simplesmente não são tocadas pelo app.
