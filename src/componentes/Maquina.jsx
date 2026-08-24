@@ -421,14 +421,14 @@ export default function Maquina({
         )
       )}
 
-      {temPendente && (
+      {/* {temPendente && (
         <div className="maquina-rodape">
           <span className="maquina-rodape-hint">Salvando automaticamente…</span>
           <button className="btn-salvar-maquina" onClick={salvar} disabled={salvando}>
             {salvando ? 'Salvando…' : 'Salvar agora'}
           </button>
-        </div>
-      )}
+        </div> }
+      )}*/
       {salvando && <div className="barra-salvando" />}
     </div>
   )
