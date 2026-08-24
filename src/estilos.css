@@ -326,6 +326,13 @@ html, body {
 }
 .secundario:hover { border-color: var(--cinza-claro); color: var(--branco); }
 
+.btn-salvar-rodape { background: var(--verde); }
+.btn-salvar-rodape:hover:not(:disabled) { background: #128A3E; }
+.btn-salvar-rodape:disabled {
+  background: var(--preto-painel); color: var(--cinza-texto);
+  border: 1px solid var(--borda-clara); cursor: default; opacity: .8;
+}
+
 /* ── modais (base) ─────────────────────────────────────── */
 .fundo-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,.75);

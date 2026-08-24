@@ -13,6 +13,7 @@ export default function PainelHierarquia({
   setores, grupos, maquinas, estacoes, gerenciar, operador, bloqueado,
   aoSalvarLote, aoAddSetor, aoAddGrupo, aoAddMaquina, aoAddEstacao,
   aoExcluir, aoRenomear, aoMoverGrupo, aoMoverMaquina,
+  aoMudarEstadoSalvar,
 }) {
   const [setorSelId, setSetorSelId]     = useState(null)
   const [grupoSelId, setGrupoSelId]     = useState(null)
@@ -215,6 +216,7 @@ export default function PainelHierarquia({
                 aoExcluir={aoExcluir}
                 aoRenomear={aoRenomear}
                 aoMover={() => {}}
+                aoMudarEstadoSalvar={aoMudarEstadoSalvar}
               />
             </div>
           </div>

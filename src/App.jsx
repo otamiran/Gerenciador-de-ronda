@@ -135,6 +135,14 @@ export default function App() {
 
   const salvarOperador = v => { setOperador(v); localStorage.setItem('ronda-operador', v) }
 
+  // ── botão "Salvar" fixo no rodapé ────────────────────────────
+  // reflete o estado (pendente / salvando / função salvar) da máquina que
+  // está aberta no momento na coluna de detalhe, pra não depender de rolar
+  // até o fim da tela pra encontrar o botão de salvar dela.
+  const [estadoSalvar, setEstadoSalvar] = useState(null)
+  const aoMudarEstadoSalvar = useCallback(estado => setEstadoSalvar(estado), [])
+  const salvarPendenteAtual = () => estadoSalvar?.salvar?.()
+
   // ── salvar lote ───────────────────────────────────────────
   const salvarLote = useCallback((maquinaId, draftMaq, draftEst, op) => {
     const usuario = op || '—'
@@ -365,12 +373,21 @@ export default function App() {
             aoRenomear={renomear}
             aoMoverGrupo={moverGrupo}
             aoMoverMaquina={moverMaquina}
+            aoMudarEstadoSalvar={aoMudarEstadoSalvar}
           />
         )}
       </main>
 
       <footer className="rodape">
         <button className="secundario" onClick={novaRonda}>Encerrar ronda</button>
+        <button
+          className="primario btn-salvar-rodape"
+          onClick={salvarPendenteAtual}
+          disabled={!estadoSalvar?.pendente || estadoSalvar?.salvando}
+          title={estadoSalvar?.pendente ? 'Salvar alterações da máquina aberta' : 'Nenhuma alteração pendente'}
+        >
+          {estadoSalvar?.salvando ? 'Salvando…' : (estadoSalvar?.pendente ? '💾 Salvar' : '✓ Salvo')}
+        </button>
         <button className="primario" onClick={gerarRelatorio}>📲 WhatsApp</button>
       </footer>
 

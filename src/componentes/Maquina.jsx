@@ -48,6 +48,10 @@ export default function Maquina({
   // Nesse modo a máquina não abre o próprio painel lateral — o detalhe
   // (estações, obs, status) já é exibido direto como conteúdo da coluna.
   comoColuna = false,
+  // aoMudarEstadoSalvar: reporta { pendente, salvando, salvar } (ou null) pro
+  // componente pai, para que um botão "Salvar" fixo no rodapé da tela possa
+  // salvar a máquina aberta no momento sem precisar rolar até o fim dela.
+  aoMudarEstadoSalvar,
 }) {
   const minhasEstacoes = estacoes.filter(e => e.maquina_id === maquina.id)
   const [draft, setDraft]           = useState(() => buildRascunho(maquina, minhasEstacoes))
@@ -100,6 +104,18 @@ export default function Maquina({
     setSalvoOk(true)
     setTimeout(() => setSalvoOk(false), 1800)
   }, [salvando, aoSalvarLote, maquina.id, draft, operador])
+
+  // reporta o estado de "tem pendência / está salvando / função salvar" pro
+  // pai, pra alimentar o botão "Salvar" fixo no rodapé
+  useEffect(() => {
+    if (!aoMudarEstadoSalvar) return
+    aoMudarEstadoSalvar({ pendente: temPendente, salvando, salvar })
+  }, [aoMudarEstadoSalvar, temPendente, salvando, salvar])
+
+  useEffect(() => {
+    if (!aoMudarEstadoSalvar) return
+    return () => aoMudarEstadoSalvar(null)
+  }, [aoMudarEstadoSalvar])
 
   // auto-salva qualquer alteração pendente (não só quando 100% completo).
   // Debounce curto quando a máquina fica completa (feedback rápido) e um
