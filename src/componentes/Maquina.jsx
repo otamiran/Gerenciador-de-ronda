@@ -428,8 +428,9 @@ export default function Maquina({
             {salvando ? 'Salvando…' : 'Salvar agora'}
           </button>
         </div> }
-      )}*/
-      {salvando && <div className="barra-salvando" />}
+      {salvando && <div className="barra-salvando" />})
+      */}
+      
     </div>
   )
 }
